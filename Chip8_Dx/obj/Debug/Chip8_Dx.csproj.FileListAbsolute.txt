@@ -19,3 +19,5 @@ D:\Projects\Chip8_Dx\Chip8_Dx\obj\Debug\Chip8_Dx.exe
 D:\Projects\Chip8_Dx\Chip8_Dx\obj\Debug\Chip8_Dx.pdb
 D:\Projects\Chip8_Dx\Chip8_Dx\bin\Debug\pixelShader.hlsl
 D:\Projects\Chip8_Dx\Chip8_Dx\bin\Debug\vertexShader.hlsl
+D:\Projects\Chip8_Dx\Chip8_Dx\bin\Debug\SharpDX.Direct2D1.dll
+D:\Projects\Chip8_Dx\Chip8_Dx\bin\Debug\SharpDX.Direct2D1.xml

@@ -1,6 +1,7 @@
 ﻿using SharpDX;
 using SharpDX.D3DCompiler;
 using SharpDX.Direct3D;
+//using SharpDX.Direct2D1;
 using SharpDX.DXGI;
 using SharpDX.Mathematics.Interop;
 using SharpDX.Windows;
@@ -20,31 +21,43 @@ namespace Chip8_Dx {
         private const int Width = 1280;
         private const int Height = 720;
         SharpDX.Color[] pixColor = new SharpDX.Color[] { SharpDX.Color.Black, SharpDX.Color.Red };
+        bool step = true;
         private D3D11.Device d3dDevice;
         private D3D11.DeviceContext d3dDeviceContext;
         private SwapChain swapChain;
         private D3D11.RenderTargetView renderTargetView;
         private Viewport viewport;
         Random rand = new Random();
-        // Shaders
         private D3D11.VertexShader vertexShader;
-
         private D3D11.PixelShader pixelShader;
         private ShaderSignature inputSignature;
         private D3D11.InputLayout inputLayout;
         public static byte[] gfxOut = new byte[64 * 32];//2048 pix
-        
-        
-        //private D3D11.InputElement[] inputElements = new D3D11.InputElement[]
-        //{
-        //    new D3D11.InputElement("POSITION", 0, Format.R32G32B32_Float, 0)
-        //};
         private D3D11.InputElement[] inputElements = new D3D11.InputElement[]{
             new D3D11.InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, D3D11.InputClassification.PerVertexData, 0),
             new D3D11.InputElement("COLOR", 0, Format.R32G32B32A32_Float, 12, 0, D3D11.InputClassification.PerVertexData, 0)
         };
 
+        Label label = new Label {
+            Size = new Size(200, Height),
+            Location = new System.Drawing.Point(800, 200),
+            Font = SystemFonts.DialogFont,
+            Visible = true,
 
+        };
+        Button nStep = new Button {
+            Size = new Size(90, 30),
+            Location = new System.Drawing.Point(400, 0),
+            Font = SystemFonts.DialogFont,
+            Visible = true,
+            Text = "STEP"
+        };
+
+        
+
+        private void nStep_Click(object sender, EventArgs e) {
+            step = true;
+        }
         public struct VertexPositionColor {
             public readonly Vector3 Position;
             public readonly Color4 Color;
@@ -54,62 +67,54 @@ namespace Chip8_Dx {
                 Color = color;
             }
         }
-
-
-        // Triangle vertices
-        private RawVector3[] vertices = new RawVector3[] {
-            new RawVector3(-0.5f,  0.5f, 0.0f),
-            new RawVector3( 0.5f,  0.5f, 0.0f),
-            new RawVector3( 0.0f, -1.0f, 0.0f)
-        };
-        
-        private RawVector3[] rectVerts = new RawVector3[] {
-            new RawVector3(-0.7f,  -0.5f, 0.0f),
-            new RawVector3( -0.5f,  -0.5f, 0.0f),
-            new RawVector3(-0.7f, -0.7f, 0.0f),
-            new RawVector3( -0.5f, -0.7f, 0.0f),
-
-            new RawVector3(-0.5f,  0.5f, 0.0f),
-            new RawVector3( 0.5f,  0.5f, 0.0f),
-            new RawVector3(-0.5f, -0.5f, 0.0f),
-            new RawVector3( 0.5f, -0.5f, 0.0f)
-        };
-
-        private RawVector3[] verts = new RawVector3[32*64*4];
-
         private VertexPositionColor[] pix = new VertexPositionColor[32 * 64 * 4];
-
-        private D3D11.Buffer triangleVertexBuffer;
-        private D3D11.Buffer rectVertexBuffer;
         private D3D11.Buffer screenVertexBuffer;
-
+//____________________________________________________________________________________________________________________________________________________________________________________________
         public GFX() {// Set window properties
-
+            
             renderForm = new RenderForm("Chipper 8");
             renderForm.ClientSize = new Size(Width, Height);
             renderForm.AllowUserResizing = false;
 
             InitializeDeviceResources();
             InitializeShaders();
+            for (int i = 0; i < 64 * 32; i++) {
+                gfxOut[i] = 0;
+            }
             InitBuffers();
 
+            nStep.MouseDown += nStep_Click;
+            //nStep.Click += nStep_Click;
+            renderForm.Controls.Add(label);
+            renderForm.Controls.Add(nStep);
+            
             RefreshMemDisplay();
         }
-
+//____________________________________________________________________________________________________________________________________________________________________________________________
         /// <summary>
         /// Start the game.
         /// </summary>
         public void Run() {
-            if (CPU.drawFlag) {
+            
                 RenderLoop.Run(renderForm, RenderCallback);
-            }
-        }
-
-        private void RenderCallback() {
-            Draw();
             
         }
+//____________________________________________________________________________________________________________________________________________________________________________________________
+        private void RenderCallback() {
+            if (step) {
+                Console.Write("FFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+                CPU.emulateCycle();
+                SYS_STATE();
+                if (CPU.drawFlag) {
+                    Draw();
+                }
+            }
 
+
+            step = false;
+
+        }
+//____________________________________________________________________________________________________________________________________________________________________________________________
         private void InitializeDeviceResources() {
             ModeDescription backBufferDesc = new ModeDescription(Width, Height, new Rational(60, 1), Format.R8G8B8A8_UNorm);
 
@@ -135,7 +140,7 @@ namespace Chip8_Dx {
                 renderTargetView = new D3D11.RenderTargetView(d3dDevice, backBuffer);
             }
         }
-
+//____________________________________________________________________________________________________________________________________________________________________________________________
         private void InitializeShaders() {// Compile the vertex/pixel shaders
             using (var vertexShaderByteCode = ShaderBytecode.CompileFromFile("vertexShader.hlsl", "main", "vs_4_0", ShaderFlags.Debug)) {
                 inputSignature = ShaderSignature.GetInputSignature(vertexShaderByteCode);
@@ -156,14 +161,12 @@ namespace Chip8_Dx {
             d3dDeviceContext.InputAssembler.InputLayout = inputLayout;// Set input layout to use
         }
 //____________________________________________________________________________________________________________________________________________________________________________________________
-        private void InitBuffers() {// Create a vertex buffer, and use our array with vertices as data
+        private void InitBuffers() {// Create a vertex buffer
             
-            for (int i = 0; i < 64 * 32; i++) {
-                gfxOut[i] = (byte)rand.Next(0, 2);
-            }
+            //for (int i = 0; i < 64 * 32; i++) {
+            //    gfxOut[i] = (byte)rand.Next(0, 2);
+            //}
             
-
-
             float Xoff = -.6f;
             float Yoff = -.9f;
             float X_scale = .01f * (Width/Height);
@@ -178,37 +181,24 @@ namespace Chip8_Dx {
                 }
             }
             screenVertexBuffer = D3D11.Buffer.Create<VertexPositionColor>(d3dDevice, D3D11.BindFlags.VertexBuffer, pix);
-            //triangleVertexBuffer = D3D11.Buffer.Create<RawVector3>(d3dDevice, D3D11.BindFlags.VertexBuffer, vertices);
-            //rectVertexBuffer = D3D11.Buffer.Create<RawVector3>(d3dDevice, D3D11.BindFlags.VertexBuffer, rectVerts);
         }
 
 //____________________________________________________________________________________________________________________________________________________________________________________________
         private void Draw() {
-            InitBuffers();
+            
+            InitBuffers();//MEMORY LEAK
             //d3dDeviceContext.UpdateSubresource(,);
             d3dDeviceContext.OutputMerger.SetRenderTargets(renderTargetView);// Set back buffer as current render target view          
             d3dDeviceContext.ClearRenderTargetView(renderTargetView, new RawColor4(0, 0, 178, 2));// Clear the screen
-
-            // Set vertex buffer
-            
-            //d3dDeviceContext.InputAssembler.SetVertexBuffers(0, new D3D11.VertexBufferBinding(rectVertexBuffer, Utilities.SizeOf<RawVector3>(), 0));
-            //d3dDeviceContext.Draw(rectVerts.Count(), 0);
-            //d3dDeviceContext.Draw(4, 0);
-            //d3dDeviceContext.Draw(4, 4);
-            //d3dDeviceContext.InputAssembler.SetVertexBuffers(0, new D3D11.VertexBufferBinding(triangleVertexBuffer, Utilities.SizeOf<RawVector3>(), 0));
-            //d3dDeviceContext.Draw(vertices.Count(), 0);
-
-            d3dDeviceContext.InputAssembler.SetVertexBuffers(0, new D3D11.VertexBufferBinding(screenVertexBuffer, Utilities.SizeOf<VertexPositionColor>(), 0));
+            d3dDeviceContext.InputAssembler.SetVertexBuffers(0, new D3D11.VertexBufferBinding(screenVertexBuffer, Utilities.SizeOf<VertexPositionColor>(), 0));// Set vertex buffer
+            SYS_STATE();
             for (int i = 0; i < 64 * 32*4; i += 4) {
                 d3dDeviceContext.Draw(4, i);
                 d3dDeviceContext.PixelShader.Set(pixelShader);
             }
-
-            
             swapChain.Present(0, PresentFlags.None);// Swap front and back buffer
             screenVertexBuffer.Dispose();
-
-
+            //RefreshMemDisplay();
         }
 //____________________________________________________________________________________________________________________________________________________________________________________________
         public void RefreshMemDisplay() {
@@ -228,20 +218,70 @@ namespace Chip8_Dx {
             }
 
 
-            TextBox tb = new TextBox();
-            tb.Text = "HYAA";
-            tb.Tag = "mem";
-            tb.Select();
-            //this.Controls.Add(tb);
-            lb.Items.Add(tb);
-
         }
 
-        public void Dispose() {
+
+        protected void SYS_STATE() {
+            //TextBox tb = new TextBox();
+            //tb.Size = new Size(400, Height);
+            //tb.Location = new System.Drawing.Point(200, 0);
+            //tb.Text = "HYAA";
+            //tb.Tag = "mem";
+            //tb.Select();
+            //renderForm.Controls.Add(tb);
+
+
+
+
+            
+            label.Text=(
+                "___REGISTERS___" +
+                "\nV[0] == " + CPU.V[0] +
+                "\nV[1] == " + CPU.V[1] +
+                "\nV[2] == " + CPU.V[2] +
+                "\nV[3] == " + CPU.V[3] +
+                "\nV[4] == " + CPU.V[4] +
+                "\nV[5] == " + CPU.V[5] +
+                "\nV[6] == " + CPU.V[6] +
+                "\nV[7] == " + CPU.V[7] +
+                "\nV[8] == " + CPU.V[8] +
+                "\nV[9] == " + CPU.V[9] +
+                "\nV[A] == " + CPU.V[10] +
+                "\nV[B] == " + CPU.V[11] +
+                "\nV[C] == " + CPU.V[12] +
+                "\nV[D] == " + CPU.V[13] +
+                "\nV[E] == " + CPU.V[14] +
+                "\nV[F] == " + CPU.V[15] +
+                "\n\n " + 
+                "\nPC == " + CPU.pc +
+                "\nSP == " + CPU.sp +
+                "\nOPCODE == 0x" + CPU.opcode.ToString("X") +
+                "\nDebug == " + CPU.dbgMsg +
+                "\nS[0] == " + CPU.stack[0] +
+                "\nS[1] == " + CPU.stack[1] +
+                "\nS[2] == " + CPU.stack[2] +
+                "\nS[3] == " + CPU.stack[3] +
+                "\nS[4] == " + CPU.stack[4] +
+                "\nS[5] == " + CPU.stack[5] +
+                "\nS[6] == " + CPU.stack[6] +
+                "\nS[7] == " + CPU.stack[7] +
+                "\nS[8] == " + CPU.stack[8] +
+                "\nS[9] == " + CPU.stack[9] +
+                "\nS[A] == " + CPU.stack[10] +
+                "\nS[B] == " + CPU.stack[11] +
+                "\nS[C] == " + CPU.stack[12] +
+                "\nS[D] == " + CPU.stack[13] +
+                "\nS[E] == " + CPU.stack[14] +
+                "\nS[F] == " + CPU.stack[15] 
+            );
+            label.Refresh();
+            
+        }
+
+
+    public void Dispose() {
             inputLayout.Dispose();
             inputSignature.Dispose();
-            triangleVertexBuffer.Dispose();
-            rectVertexBuffer.Dispose();
             screenVertexBuffer.Dispose();
             vertexShader.Dispose();
             pixelShader.Dispose();

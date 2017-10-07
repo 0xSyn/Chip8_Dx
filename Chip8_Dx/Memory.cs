@@ -18,7 +18,7 @@ namespace Chip8_Dx{
 
         public Memory() { }
 
-        public static int LoadProgram(String file) {
+        public static int LoadProgram(String file) {//load program into memory
             if (File.Exists(CPU.file)) {
                 FileStream stream = File.Open(file, FileMode.Open);
                 byte[] data = new byte[stream.Length];
@@ -31,7 +31,7 @@ namespace Chip8_Dx{
             return 0;
         }
 
-        public static void LoadFontset() { // Load fontset onto memory
+        public static void LoadFontset() { // Load fontset into memory
             for (int i = 0; i < 80; ++i)
                 Memory.memory[i] = CPU.fontset[i];
         }
