@@ -21,10 +21,10 @@ namespace Chip8_Dx {
 
         private const int Width = 1280;
         private const int Height = 720;
-        public static byte[] keys = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        
         SharpDX.Color[] pixColor = new SharpDX.Color[] { SharpDX.Color.Black, SharpDX.Color.LimeGreen };
         bool step = true;
-        bool DEBUG = false;
+        bool DEBUG = true;
         private D3D11.Device d3dDevice;
         private D3D11.DeviceContext d3dDeviceContext;
         private SwapChain swapChain;
@@ -51,7 +51,7 @@ namespace Chip8_Dx {
 
         };
         Label lab_op = new Label {
-            Size = new Size(400, (int)(Height * .35f)),
+            Size = new Size(600, (int)(Height * .35f)),
             Location = new System.Drawing.Point(102, (int)(Height * .65f)),
             Font = SystemFonts.DialogFont,
             Visible = true,
@@ -65,6 +65,43 @@ namespace Chip8_Dx {
             Font = SystemFonts.DialogFont,
             Visible = true,
             Text = "STEP",
+            BackColor = System.Drawing.Color.Black,
+            ForeColor = System.Drawing.Color.LimeGreen
+
+        };
+        Button resume = new Button {
+            Size = new Size(90, 30),
+            Location = new System.Drawing.Point(600, (int)(Height * .70f)),
+            Font = SystemFonts.DialogFont,
+            Visible = true,
+            Text = "RUN",
+            BackColor = System.Drawing.Color.Black,
+            ForeColor = System.Drawing.Color.LimeGreen
+        };
+        Button game0 = new Button {
+            Size = new Size(90, 30),
+            Location = new System.Drawing.Point(700, (int)(Height * .65f)),
+            Font = SystemFonts.DialogFont,
+            Visible = true,
+            Text = "Pong",
+            BackColor = System.Drawing.Color.Black,
+            ForeColor = System.Drawing.Color.LimeGreen
+        };
+        Button game1 = new Button {
+            Size = new Size(90, 30),
+            Location = new System.Drawing.Point(700, (int)(Height * .70f)),
+            Font = SystemFonts.DialogFont,
+            Visible = true,
+            Text = "Space Invaders",
+            BackColor = System.Drawing.Color.Black,
+            ForeColor = System.Drawing.Color.LimeGreen
+        };
+        Button game2 = new Button {
+            Size = new Size(90, 30),
+            Location = new System.Drawing.Point(700, (int)(Height * .75f)),
+            Font = SystemFonts.DialogFont,
+            Visible = true,
+            Text = "Tetris",
             BackColor = System.Drawing.Color.Black,
             ForeColor = System.Drawing.Color.LimeGreen
         };
@@ -81,6 +118,26 @@ namespace Chip8_Dx {
 
 
         private void nStep_Click(object sender, EventArgs e) {
+            DEBUG = true;
+            step = true;
+        }
+        private void game0_Click(object sender, EventArgs e) {
+            CPU.fileIndex=0;
+            Memory.terminateProgram();
+            CPU.initializeInterpreter();
+        }
+        private void game1_Click(object sender, EventArgs e) {
+            CPU.fileIndex = 1;
+            Memory.terminateProgram();
+            CPU.initializeInterpreter();
+        }
+        private void game2_Click(object sender, EventArgs e) {
+            CPU.fileIndex = 2;
+            Memory.terminateProgram();
+            CPU.initializeInterpreter();
+        }
+        private void resume_Click(object sender, EventArgs e) {
+            DEBUG = false;
             step = true;
         }
         public struct VertexPositionColor {
@@ -218,11 +275,23 @@ namespace Chip8_Dx {
         //____________________________________________________________________________________________________________________________________________________________________________________________
         public void CreateDebugGUI() {
             nStep.MouseDown += nStep_Click;
+            game0.MouseDown += game0_Click;
+            game1.MouseDown += game1_Click;
+            game2.MouseDown += game2_Click;
+            resume.MouseDown += resume_Click;
             //nStep.Click += nStep_Click;
+            
+            renderForm.Controls.Add(nStep);
+            renderForm.Controls.Add(game0);
+            renderForm.Controls.Add(game1);
+            renderForm.Controls.Add(game2);
+            renderForm.Controls.Add(resume);
+
+            renderForm.Controls.Add(lb);
+            nStep.BringToFront();
+
             renderForm.Controls.Add(lab_reg);
             renderForm.Controls.Add(lab_op);
-            renderForm.Controls.Add(nStep);
-            renderForm.Controls.Add(lb);
             //RefreshMemDisplay();
         }
 
@@ -283,8 +352,9 @@ namespace Chip8_Dx {
                 );
             lab_op.Text = (
                 "___OPCODES___" +
-                "\nPC == " + CPU.pc +
-                "\nSP == " + CPU.sp +
+                "\nCycle#: " + CPU.emuCycle +
+                "\nPC: " + CPU.pc +
+                "\nSP: " + CPU.sp +
                 "\n\n0x" + CPU.opcode.ToString("X") +
                 "\n" + CPU.opOut[0] +
                 "\n" + CPU.opOut[1] +

@@ -11,9 +11,7 @@ namespace Chip8_Dx {
         Memory memory = new Memory();
         public static GFX gfx = new GFX();
         public static String[] file = new String[] { @"D:\Projects\Chip8_Dx\pong2.c8", @"D:\Projects\Chip8_Dx\invaders.c8", @"D:\Projects\Chip8_Dx\tetris.c8" };
-        //public static String file =  @"D:\Projects\Chip8_Dx\invaders.c8";
-        //public static String file = @"D:\Projects\Chip8_Dx\tetris.c8";
-        //public static String file =  @"D:\Projects\Chip8_Dx\pong2.c8";
+        public static int fileIndex = 1;
         public static bool drawFlag = true;
         public static UInt16 opcode;//35 opcodes
         public static UInt16[] V = new UInt16[16];//15 reg gen purpose -- V[15] carryflag
@@ -26,13 +24,15 @@ namespace Chip8_Dx {
         public static short sp;//stack point
         public static String dbgMsg = "";
         public static String[] opOut = new String []{ "", "", "", "", "", "", "", "", "", ""};
+        public static byte[] key = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
 
         public static void initializeInterpreter() {
-            pc = Memory.progMemStart;     // Program counter starts at 0x200 (Start adress program)
+            pc = Memory.progMemStart;     // Program counter starts at 0x200 (Start address program)
             opcode = 0;     // Reset current opcode	
             I = 0;          // Reset index register
             sp = 0;         // Reset stack pointer
-
+            emuCycle = 0;
 
             for (int i = 0; i < 2048; ++i) { GFX.gfxOut[i] = 0; }// Clear display
             for (int i = 0; i < 16; ++i) { stack[i] = 0; }// Clear stack
@@ -43,7 +43,7 @@ namespace Chip8_Dx {
             delay_timer = 0;// Reset timers
             sound_timer = 0;
             drawFlag = true;// Clear screen once
-            Memory.LoadProgram(file[1]);
+            Memory.LoadProgram(file[fileIndex]);
             gfx.RefreshMemDisplay();
             gfx.Run();
         }
@@ -400,6 +400,14 @@ namespace Chip8_Dx {
                     UInt16 y = V[(opcode & 0x00F0) >> 4];
                     UInt16 height = (UInt16)(opcode & 0x000F);
                     UInt16 pixel;
+                    opOut[0] = "Dxyn - DRW Vx, Vy, nibble == Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.";
+                    opOut[1] = "STATUS: _________BROKEN";
+                    opOut[3] = "The interpreter reads n bytes from memory, starting at the address stored in I.These bytes are then displayed as sprites on screen at coordinates(Vx, Vy).";
+                    opOut[4] = "Sprites are XORed onto the existing screen.If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0.If the sprite is positioned so part of it is outside the coordinates of the display, ";
+                    opOut[5] = "it wraps around to the opposite side of the screen.See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip - 8 screen and sprites.";
+                    opOut[6] = "x = "+x;
+                    opOut[7] = "y = "+y;
+                    opOut[8] = "height = "+height;
 
                     V[0xF] = 0;
                     for (int yline = 0; yline < height; yline++) {

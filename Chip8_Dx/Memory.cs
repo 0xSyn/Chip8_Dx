@@ -15,12 +15,12 @@ namespace Chip8_Dx{
 
         public static UInt16[] memory = new UInt16[4096];//4k mem
         public const int progMemStart = 0x200;// Decimal == 512
-        
+        public static FileStream stream;
         public Memory() { }
 
         public static int LoadProgram(String file) {//load program into memory
             if (File.Exists(file)) {
-                FileStream stream = File.Open(file, FileMode.Open);
+                stream = File.Open(file, FileMode.Open);
                 byte[] data = new byte[stream.Length];
                 stream.Read(data, 0, data.Length);
 
@@ -29,6 +29,9 @@ namespace Chip8_Dx{
                 }
             }
             return 0;
+        }
+        public static void terminateProgram() { // Load fontset into memory
+            stream.Close();
         }
 
         public static void LoadFontset() { // Load fontset into memory
