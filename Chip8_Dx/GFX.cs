@@ -40,7 +40,7 @@ namespace Chip8_Dx {
 
         Label label = new Label {
             Size = new Size(200, Height),
-            Location = new System.Drawing.Point(800, 200),
+            Location = new System.Drawing.Point(800, 0),
             Font = SystemFonts.DialogFont,
             Visible = true,
 
@@ -255,7 +255,17 @@ namespace Chip8_Dx {
                 "\n\n " + 
                 "\nPC == " + CPU.pc +
                 "\nSP == " + CPU.sp +
-                "\nOPCODE == 0x" + CPU.opcode.ToString("X") +
+                "\n\nOPCODE == 0x" + CPU.opcode.ToString("X") +
+                "\n" + CPU.opOut[0] +
+                "\n" + CPU.opOut[1] +
+                "\n" + CPU.opOut[2] +
+                "\n" + CPU.opOut[3] +
+                "\n" + CPU.opOut[4] +
+                "\n" + CPU.opOut[5] +
+                "\n" + CPU.opOut[6] +
+                "\n" + CPU.opOut[7] +
+                "\n" + CPU.opOut[8] +
+                "\n" + CPU.opOut[9] +
                 "\nDebug == " + CPU.dbgMsg +
                 "\nS[0] == " + CPU.stack[0] +
                 "\nS[1] == " + CPU.stack[1] +

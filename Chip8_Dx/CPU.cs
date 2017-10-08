@@ -22,6 +22,7 @@ namespace Chip8_Dx {
         public static short[] stack = new short[16];
         public static short sp;//stack point
         public static String dbgMsg = "";
+        public static String[] opOut = new String []{ "", "", "", "", "", "", "", "", "", ""};
 
         //      0   0   0   0       0   0   0   0
         //     128  64  32  16      8   4   2   1  
@@ -53,7 +54,11 @@ namespace Chip8_Dx {
 
 
         public static void setKeys() { }
-
+        public static void clearOpOutput() {
+            for (int i = 0; i < 10; i++) {
+                opOut[i] = "";
+            }
+        }
 
         public static void SYS_STATE() {
             Console.WriteLine("___________________________________________________________________________________");
@@ -111,7 +116,7 @@ namespace Chip8_Dx {
         /// </summary>
         public static int emuCycle = 0;
         public static void emulateCycle() {
-
+            clearOpOutput();
             // Fetch Opcode -- Shift left 8 then bitwise or to add pc+1 to right
             //Memory.DisplayMemory(0,4095);
             SYS_STATE();
@@ -129,7 +134,10 @@ namespace Chip8_Dx {
                         //It is ignored by modern interpreters.
 
                         case 0x0000://00E0 - CLS == Clear the display.
-                            Console.WriteLine("OP 0x00E0: CLS (Clear Screen)");
+                            opOut[0] = "00E0: CLS (Clear Screen)";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "gfxOut is zeroed, Drawflag is true, Increment PC";
+                            
                             for (int i = 0; i < 2048; ++i) { GFX.gfxOut[i] = 0; }
                             drawFlag = true;
                             pc += 2;
@@ -137,52 +145,96 @@ namespace Chip8_Dx {
                             break;
 
                         case 0x000E://00EE - RET == Return from a subroutine
-                            Console.WriteLine("OP 0x00EE: RET (Return from Subroutine)");
+                            opOut[0] = "00EE: RET (Return from Subroutine)";
+                            opOut[1] = "STATUS: Possibly Broken";
+                            opOut[3] = "The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.";
+                            opOut[4] = "Increment PC";
+                            
                             pc = stack[sp--];//The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
                             pc += 2;
                             break;
 
                         default:
-                            Console.Write("ERROR---OPCODE: " + opcode.ToString("X") + " DNE");
+                            opOut[0] = "ERROR-- - OPCODE: " + opcode.ToString("X") + " DNE";
                             break;
                     }
                     break;
 
                 case 0x1000:// 1nnn JMP addr
-                    Console.WriteLine("OP 0x1nnn: JMP to Addr nnn");
-                    Console.WriteLine("JMP to 0x" + (opcode & 0x0FFF).ToString("X") + " (DEC:" + (opcode & 0x0FFF) + ")");
+                    opOut[0] = "1nnn: JMP to Addr nnn";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[3] = "JMP to 0x" + (opcode & 0x0FFF).ToString("X") + "(DEC: " + (opcode & 0x0FFF) + ")";
+
                     pc = Convert.ToInt16(opcode & 0x0FFF); //0x0FFF==00001111 11111111 == 4096-1
                     break;
 
                 case 0x2000:// 2nnn CALL subroutine at addr
-                    Console.WriteLine("OP 0x2nnn: CALL Subroutine at Addr nnn");
-                    Console.WriteLine("CALL to 0x" + (opcode & 0x0FFF).ToString("X") + " (DEC:" + (opcode & 0x0FFF) + ")");
+                    opOut[0] = "2nnn: CALL Subroutine at Addr nnn";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[3] = "CALL to 0x" + (opcode & 0x0FFF).ToString("X") + " (DEC:" + (opcode & 0x0FFF) + ")";
+                    opOut[4] = "The interpreter increments the stack pointer, then puts the current PC on the top of the stack.";
+                    opOut[5] = "The PC is then set to nnn.";
                     stack[++sp] = pc;//The interpreter increments the stack pointer, then puts the current PC on the top of the stack.
                     pc = Convert.ToInt16(opcode & 0x0FFF);// The PC is then set to nnn.
                     break;
 
                 case 0x3000:// 3xkk - SE Vx, byte == Skip next instruction if register Vx = kk.
-                    Console.WriteLine("OP 0x3xkk: - SE Vx, byte (Skip next instruction if register Vx = kk)");
-                    if ((V[(opcode & 0x0F00) >> 8]) == (opcode & 0x00FF)) { pc += 4; dbgMsg = "Vx = kk"; }// if ==, increments the program counter by 2.
-                    else { pc += 2; }
+                    opOut[0] = "3xkk: - SE Vx, byte (Skip next instruction if register Vx = kk)";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[3] = "IF (Vx == kk)  -> PC+=4 (skip next)";
+                    opOut[4] = "ELSE: PC+=2";
+
+                    if ((V[(opcode & 0x0F00) >> 8]) == (opcode & 0x00FF)) {
+                        opOut[5] = "RETURNED: True -- PC+=4";
+                        pc += 4;
+                    }
+                    else {
+                        opOut[5] = "RETURNED: False -- PC+=2";
+                        pc += 2;
+                    }
                     break;
 
                 case 0x4000:// 4xkk - SnE Vx, byte == Skip next instruction if Vx != kk.
-                    if ((V[(opcode & 0x0F00) >> 8]) != (opcode & 0x00FF)) { pc += 4; }// if !=, increments the program counter by 2.
-                    else { pc += 2; }
+                    opOut[0] = "4xkk - SnE Vx, byte == Skip next instruction if Vx != kk.";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[3] = "IF (Vx != kk)  -> PC+=4 (skip next)";
+                    opOut[4] = "ELSE: PC+=2";
+                    if ((V[(opcode & 0x0F00) >> 8]) != (opcode & 0x00FF)) {
+                        opOut[5] = "RETURNED: True -- PC+=4";
+                        pc += 4;
+                    }
+                    else {
+                        opOut[5] = "RETURNED: False -- PC+=2";
+                        pc += 2; }
                     break;
 
                 case 0x5000:// 5xy0 - SE Vx, Vy == Skip next instruction if Vx = Vy.
-                    if ((V[(opcode & 0x0F00) >> 8]) == (V[(opcode & 0x00F0) >> 8])) { pc += 4; }
-                    else { pc += 2; }
+                    opOut[0] = "5xy0 - SE Vx, Vy == Skip next instruction if Vx = Vy";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[3] = "IF (Vx == Vy)  -> PC+=4 (skip next)";
+                    opOut[4] = "ELSE: PC+=2";
+                    if ((V[(opcode & 0x0F00) >> 8]) == (V[(opcode & 0x00F0) >> 8])) {
+                        opOut[5] = "RETURNED: True -- PC+=4";
+                        pc += 4;
+                    }
+                    else {
+                        opOut[5] = "RETURNED: False -- PC+=2";
+                        pc += 2;
+                    }
                     break;
 
                 case 0x6000:// 6xkk - LD Vx, byte == Set Vx = kk.
+                    opOut[0] = "6xkk - LD Vx, byte == Set Vx = kk";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[3] = "Puts the value kk into register Vx. PC+=2 ";
                     V[(opcode & 0x0F00) >> 8] = (UInt16)(opcode & 0x00FF);//The interpreter puts the value kk into register Vx.
                     pc += 2;
                     break;
 
                 case 0x7000:// 7xkk - ADD Vx, byte == Set Vx = Vx + kk.
+                    opOut[0] = "7xkk - ADD Vx, byte == Set Vx = Vx + kk";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[3] = "Adds the value kk to the value of register Vx, then stores the result in Vx. PC+=2";
                     V[(opcode & 0x0F00) >> 8] += (UInt16)(opcode & 0x00FF);//Adds the value kk to the value of register Vx, then stores the result in Vx.
                     pc += 2;
                     break;
@@ -191,7 +243,10 @@ namespace Chip8_Dx {
                 case 0x8000:
                     switch (opcode & 0x000F) {
                         case 0x0000://8xy0 - LD Vx, Vy == Set Vx = Vy.
-                            //Stores the value of register Vy in register Vx.
+                            opOut[0] = "8xy0 - LD Vx, Vy == Set Vx = Vy";
+                            opOut[1] = "STATUS: --------BORKEN-----------";
+                            opOut[3] = "Stores the value of register Vy in register Vx. PC+=2";
+                            V[opcode & 0x0F00]= V[opcode & 0x00F0];//Stores the value of register Vy in register Vx.
                             pc += 2;
                             break;
 
@@ -240,9 +295,9 @@ namespace Chip8_Dx {
                         case 0x0007://8xy7 - SUBN Vx, Vy == Set Vx = Vy - Vx, set VF = NOT borrow.
                                     //If Vy > Vx, then VF is set to 1, otherwise 0.Then Vx is subtracted from Vy, and the results stored in Vx.
                             if (V[(opcode & 0x0F00) >> 8] > V[(opcode & 0x00F0) >> 4])  // VY-VX
-                                V[0xF] = Convert.ToChar(0); // there is a borrow
+                                V[0xF] = 0; // there is a borrow
                             else
-                                V[0xF] = Convert.ToChar(1);
+                                V[0xF] = 1;
                             //V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];
                             pc += 2;
                             break;
