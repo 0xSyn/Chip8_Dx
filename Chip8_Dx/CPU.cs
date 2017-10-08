@@ -10,7 +10,10 @@ namespace Chip8_Dx {
     class CPU {
         Memory memory = new Memory();
         public static GFX gfx = new GFX();
-        public static String file = "D:\\Projects\\Chip8_Interpreter\\pong2.c8";
+        public static String[] file = new String[] { @"D:\Projects\Chip8_Dx\pong2.c8", @"D:\Projects\Chip8_Dx\invaders.c8", @"D:\Projects\Chip8_Dx\tetris.c8" };
+        //public static String file =  @"D:\Projects\Chip8_Dx\invaders.c8";
+        //public static String file = @"D:\Projects\Chip8_Dx\tetris.c8";
+        //public static String file =  @"D:\Projects\Chip8_Dx\pong2.c8";
         public static bool drawFlag = true;
         public static UInt16 opcode;//35 opcodes
         public static UInt16[] V = new UInt16[16];//15 reg gen purpose -- V[15] carryflag
@@ -23,6 +26,30 @@ namespace Chip8_Dx {
         public static short sp;//stack point
         public static String dbgMsg = "";
         public static String[] opOut = new String []{ "", "", "", "", "", "", "", "", "", ""};
+
+        public static void initializeInterpreter() {
+            pc = Memory.progMemStart;     // Program counter starts at 0x200 (Start adress program)
+            opcode = 0;     // Reset current opcode	
+            I = 0;          // Reset index register
+            sp = 0;         // Reset stack pointer
+
+
+            for (int i = 0; i < 2048; ++i) { GFX.gfxOut[i] = 0; }// Clear display
+            for (int i = 0; i < 16; ++i) { stack[i] = 0; }// Clear stack
+            //for (int i = 0; i < 16; ++i)
+            //key[i] = V[i] = 0;
+            Memory.ClearMemory();
+            Memory.LoadFontset();
+            delay_timer = 0;// Reset timers
+            sound_timer = 0;
+            drawFlag = true;// Clear screen once
+            Memory.LoadProgram(file[1]);
+            gfx.RefreshMemDisplay();
+            gfx.Run();
+        }
+
+
+
 
         //      0   0   0   0       0   0   0   0
         //     128  64  32  16      8   4   2   1  
@@ -54,6 +81,7 @@ namespace Chip8_Dx {
 
 
         public static void setKeys() { }
+
         public static void clearOpOutput() {
             for (int i = 0; i < 10; i++) {
                 opOut[i] = "";
@@ -76,28 +104,7 @@ namespace Chip8_Dx {
 
 
 
-        public static void initializeInterpreter() {
-            pc = Memory.progMemStart;     // Program counter starts at 0x200 (Start adress program)
-            opcode = 0;     // Reset current opcode	
-            I = 0;          // Reset index register
-            sp = 0;         // Reset stack pointer
 
-
-            for (int i = 0; i < 2048; ++i) { GFX.gfxOut[i] = 0; }// Clear display
-            for (int i = 0; i < 16; ++i) { stack[i] = 0; }// Clear stack
-            //for (int i = 0; i < 16; ++i)
-            //key[i] = V[i] = 0;
-            Memory.ClearMemory();
-            Memory.LoadFontset();
-            delay_timer = '0';// Reset timers
-            sound_timer = '0';
-            drawFlag = true;// Clear screen once
-            Memory.LoadProgram(@"D:\Projects\Chip8_Interpreter\pong2.c8");
-            Debug.Write(Memory.memory[0]+"CCCCCCCCKKKKKKKKKKK");
-            gfx.RefreshMemDisplay();
-            gfx.Run();
-            //srand(time(NULL));
-        }
 
 
         /// <summary>
@@ -109,6 +116,13 @@ namespace Chip8_Dx {
         /// y - A 4 - bit value, the upper 4 bits of the low byte of the instruction
         /// kk or byte -An 8 - bit value, the lowest 8 bits of the instruction
         ///
+        /// 
+        ///  A bitwise AND compares the corrseponding bits from two values, and if both bits are 1, then the same bit in the result is also 1. Otherwise, it is 0. 
+        ///  A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0.
+        ///  An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
+        /// 
+        /// 
+        /// 
         /// Opcode == wwwwxxxx yyyyzzzz
         /// 0xF000 == 11110000 00000000
         /// Result == wwww0000 00000000
@@ -213,7 +227,7 @@ namespace Chip8_Dx {
                     opOut[1] = "STATUS: Assumed Working";
                     opOut[3] = "IF (Vx == Vy)  -> PC+=4 (skip next)";
                     opOut[4] = "ELSE: PC+=2";
-                    if ((V[(opcode & 0x0F00) >> 8]) == (V[(opcode & 0x00F0) >> 8])) {
+                    if ((V[(opcode & 0x0F00) >> 8]) == (V[(opcode & 0x00F0) >> 4])) {
                         opOut[5] = "RETURNED: True -- PC+=4";
                         pc += 4;
                     }
@@ -231,7 +245,7 @@ namespace Chip8_Dx {
                     pc += 2;
                     break;
 
-                case 0x7000:// 7xkk - ADD Vx, byte == Set Vx = Vx + kk.
+                case 0x7000:// 7xkk - ADD Vx, byte -- Set Vx = Vx + kk.
                     opOut[0] = "7xkk - ADD Vx, byte == Set Vx = Vx + kk";
                     opOut[1] = "STATUS: Assumed Working";
                     opOut[3] = "Adds the value kk to the value of register Vx, then stores the result in Vx. PC+=2";
@@ -242,48 +256,87 @@ namespace Chip8_Dx {
 
                 case 0x8000:
                     switch (opcode & 0x000F) {
-                        case 0x0000://8xy0 - LD Vx, Vy == Set Vx = Vy.
-                            opOut[0] = "8xy0 - LD Vx, Vy == Set Vx = Vy";
-                            opOut[1] = "STATUS: --------BORKEN-----------";
-                            opOut[3] = "Stores the value of register Vy in register Vx. PC+=2";
-                            V[opcode & 0x0F00]= V[opcode & 0x00F0];//Stores the value of register Vy in register Vx.
+                        case 0x0000://8xy0 - LD Vx, Vy -- Set Vx = Vy.
+                            opOut[0] = "8xy0 - LD Vx, Vy -- Set Vx = Vy";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "Stores the value of register Vy in register Vx";
+                            opOut[4] = "PC += 2";
+                            V[(opcode & 0x0F00)>>8] = V[(opcode & 0x00F0)>>4];//Stores the value of register Vy in register Vx.
                             pc += 2;
                             break;
 
                         case 0x0001://8xy1 - OR Vx, Vy == Set Vx = Vx OR Vy.
-                            V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4];//Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0. 
+                            opOut[0] = "8xy1 - OR Vx, Vy -- Set Vx = Vx OR Vy";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx.  ";
+                            opOut[4] = "PC += 2";
+                            V[(opcode & 0x0F00) >> 8] |= V[(opcode & 0x00F0) >> 4];//Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx.
                             pc += 2;
                             break;
 
                         case 0x0002://8xy2 - AND Vx, Vy == Set Vx = Vx AND Vy.
-                            V[(opcode & 0x0F00) >> 8] &= V[(opcode & 0x00F0) >> 4];//Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx. A bitwise AND compares the corrseponding bits from two values, and if both bits are 1, then the same bit in the result is also 1. Otherwise, it is 0. 
+                            opOut[0] = "8xy2 - AND Vx, Vy -- Set Vx = Vx AND Vy";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "Bitwise AND on values of Vx and Vy, then stores the result in Vx.";
+                            opOut[4] = "PC += 2";
+                            V[(opcode & 0x0F00) >> 8] &= V[(opcode & 0x00F0) >> 4];//Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx.
                             pc += 2;
                             break;
 
                         case 0x0003://8xy3 - XOR Vx, Vy == Set Vx = Vx XOR Vy.
-                            V[(opcode & 0x0F00) >> 8] ^= V[(opcode & 0x00F0) >> 4];//Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
+                            opOut[0] = "8xy3 - XOR Vx, Vy -- Set Vx = Vx XOR Vy";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx";
+                            opOut[4] = "PC += 2";
+                            V[(opcode & 0x0F00) >> 8] ^= V[(opcode & 0x00F0) >> 4];//Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. 
                             pc += 2;
                             break;
 
+
+
                         case 0x0004://8xy4 - ADD Vx, Vy == Set Vx = Vx + Vy, set VF = carry.
-                                    //The values of Vx and Vy are added together.If the result is greater than 8 bits(i.e., > 255,) VF is set to 1, otherwise 0.Only the lowest 8 bits of the result are kept, and stored in Vx.
-                            if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8]))
-                                V[0xF] = Convert.ToChar(1); //carry
-                            else
-                                V[0xF] = Convert.ToChar(0);
+                            opOut[0] = "8xy4 - ADD Vx, Vy == Set Vx = Vx + Vy, set VF = carry";
+                            opOut[1] = "STATUS: Likely Broken";
+                            opOut[3] = "The values of Vx and Vy are added together.If the result is greater than 8 bits(i.e., > 255,) VF is set to 1, otherwise 0.Only the lowest 8 bits of the result are kept, and stored in Vx.";
+                            
+                            //The values of Vx and Vy are added together.If the result is greater than 8 bits(i.e., > 255,) VF is set to 1, otherwise 0.Only the lowest 8 bits of the result are kept, and stored in Vx.
+                            if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
+                                opOut[4] = "RETURN: True (Carry Flag = 1)";
+                                V[0xF] = 1; //carry
+                            }
+                            else {
+                                opOut[4] = "RETURN: False (Carry Flag = 0)";
+                                V[0xF] = 0;
+                            }
+                            opOut[5] = "Store result in Vx";
+                            opOut[6] = "PC += 2";
                             V[(opcode & 0x0F00) >> 8] += V[(opcode & 0x00F0) >> 4];
                             pc += 2;
                             break;
 
+
+
                         case 0x0005://8xy5 - SUB Vx, Vy == Set Vx = Vx - Vy, set VF = NOT borrow.
-                                    //If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
-                            if (V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8])
-                                V[0xF] = Convert.ToChar(0); // there is a borrow
-                            else
-                                V[0xF] = Convert.ToChar(1);
+                            opOut[0] = "8xy5 - SUB Vx, Vy -- Set Vx = Vx - Vy, set VF = NOT borrow";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "IF (Vx > Vy) VF = 1";
+                            opOut[3] = "ELSE: VF = 0";
+                            //If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
+                            if (V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8]) {
+                                opOut[4] = "RETURN: True (VF = 0 -- Borrow)";
+                                V[0xF] = 0; // there is a borrow
+                            }
+                            else {
+                                opOut[4] = "RETURN: False (VF = 1 -- NOT Borrow)";
+                                V[0xF] = 1;
+                            }
+                            opOut[4] = "Vy is subtracted from Vx, and the results stored in Vx";
+                            opOut[4] = "PC += 2";
                             V[(opcode & 0x0F00) >> 8] -= V[(opcode & 0x00F0) >> 4];
                             pc += 2;
                             break;
+
+
 
                         case 0x0006://8xy6 - SHR Vx {, Vy} == Set Vx = Vx SHR 1
                                     //If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided by 2.
@@ -291,6 +344,9 @@ namespace Chip8_Dx {
                             V[(opcode & 0x0F00) >> 8] >>= 1;
                             pc += 2;
                             break;
+
+
+
 
                         case 0x0007://8xy7 - SUBN Vx, Vy == Set Vx = Vy - Vx, set VF = NOT borrow.
                                     //If Vy > Vx, then VF is set to 1, otherwise 0.Then Vx is subtracted from Vy, and the results stored in Vx.
@@ -301,6 +357,9 @@ namespace Chip8_Dx {
                             //V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];
                             pc += 2;
                             break;
+
+
+
 
                         case 0x000E://8xyE - SHL Vx {, Vy} == Set Vx = Vx SHL 1.
                             //If the most - significant bit of Vx is 1, then VF is set to 1, otherwise to 0.Then Vx is multiplied by 2.

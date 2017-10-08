@@ -15,11 +15,11 @@ namespace Chip8_Dx{
 
         public static UInt16[] memory = new UInt16[4096];//4k mem
         public const int progMemStart = 0x200;// Decimal == 512
-
+        
         public Memory() { }
 
         public static int LoadProgram(String file) {//load program into memory
-            if (File.Exists(CPU.file)) {
+            if (File.Exists(file)) {
                 FileStream stream = File.Open(file, FileMode.Open);
                 byte[] data = new byte[stream.Length];
                 stream.Read(data, 0, data.Length);

@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using D3D11 = SharpDX.Direct3D11;
 using System.Windows.Forms;
+using System.Windows.Input;
 
 namespace Chip8_Dx {
     class GFX : IDisposable {
@@ -20,8 +21,10 @@ namespace Chip8_Dx {
 
         private const int Width = 1280;
         private const int Height = 720;
-        SharpDX.Color[] pixColor = new SharpDX.Color[] { SharpDX.Color.Black, SharpDX.Color.Red };
+        public static byte[] keys = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        SharpDX.Color[] pixColor = new SharpDX.Color[] { SharpDX.Color.Black, SharpDX.Color.LimeGreen };
         bool step = true;
+        bool DEBUG = false;
         private D3D11.Device d3dDevice;
         private D3D11.DeviceContext d3dDeviceContext;
         private SwapChain swapChain;
@@ -38,22 +41,44 @@ namespace Chip8_Dx {
             new D3D11.InputElement("COLOR", 0, Format.R32G32B32A32_Float, 12, 0, D3D11.InputClassification.PerVertexData, 0)
         };
 
-        Label label = new Label {
-            Size = new Size(200, Height),
-            Location = new System.Drawing.Point(800, 0),
+        Label lab_reg = new Label {
+            Size = new Size(100, (int)(Height*.65f)),
+            Location = new System.Drawing.Point(102, 0),
+            Font = SystemFonts.DialogFont,
+            BackColor = System.Drawing.Color.Black,
+            ForeColor = System.Drawing.Color.LimeGreen,
+            Visible = true,
+
+        };
+        Label lab_op = new Label {
+            Size = new Size(400, (int)(Height * .35f)),
+            Location = new System.Drawing.Point(102, (int)(Height * .65f)),
             Font = SystemFonts.DialogFont,
             Visible = true,
+            BackColor = System.Drawing.Color.Black,
+            ForeColor = System.Drawing.Color.LimeGreen
 
         };
         Button nStep = new Button {
             Size = new Size(90, 30),
-            Location = new System.Drawing.Point(400, 0),
+            Location = new System.Drawing.Point(600, (int)(Height * .65f)),
             Font = SystemFonts.DialogFont,
             Visible = true,
-            Text = "STEP"
+            Text = "STEP",
+            BackColor = System.Drawing.Color.Black,
+            ForeColor = System.Drawing.Color.LimeGreen
         };
 
-        
+        ListBox lb = new ListBox {
+            Size = new Size(100, Height),
+            Location = new System.Drawing.Point(0, 0),
+            SelectionMode = SelectionMode.MultiExtended,
+            Font = SystemFonts.DialogFont,
+            BackColor = System.Drawing.Color.Black,
+            ForeColor = System.Drawing.Color.LimeGreen,
+            Visible = true
+        };
+
 
         private void nStep_Click(object sender, EventArgs e) {
             step = true;
@@ -82,13 +107,8 @@ namespace Chip8_Dx {
                 gfxOut[i] = 0;
             }
             InitBuffers();
+            if (true) { CreateDebugGUI(); }
 
-            nStep.MouseDown += nStep_Click;
-            //nStep.Click += nStep_Click;
-            renderForm.Controls.Add(label);
-            renderForm.Controls.Add(nStep);
-            
-            RefreshMemDisplay();
         }
 //____________________________________________________________________________________________________________________________________________________________________________________________
         /// <summary>
@@ -110,16 +130,15 @@ namespace Chip8_Dx {
                 }
             }
 
-
-            //step = false;
+            if (DEBUG) {
+                step = false;
+            }
 
         }
 //____________________________________________________________________________________________________________________________________________________________________________________________
         private void InitializeDeviceResources() {
-            ModeDescription backBufferDesc = new ModeDescription(Width, Height, new Rational(60, 1), Format.R8G8B8A8_UNorm);
-
-            // Descriptor for the swap chain
-            SwapChainDescription swapChainDesc = new SwapChainDescription() {
+            ModeDescription backBufferDesc = new ModeDescription(Width, Height, new Rational(60, 1), Format.R8G8B8A8_UNorm);           
+            SwapChainDescription swapChainDesc = new SwapChainDescription() {// Descriptor for the swap chain
                 ModeDescription = backBufferDesc,
                 SampleDescription = new SampleDescription(1, 0),
                 Usage = Usage.RenderTargetOutput,
@@ -146,12 +165,9 @@ namespace Chip8_Dx {
                 inputSignature = ShaderSignature.GetInputSignature(vertexShaderByteCode);
                 vertexShader = new D3D11.VertexShader(d3dDevice, vertexShaderByteCode);
             }
-
             using (var pixelShaderByteCode = ShaderBytecode.CompileFromFile("pixelShader.hlsl", "main", "ps_4_0", ShaderFlags.Debug)) {
                 pixelShader = new D3D11.PixelShader(d3dDevice, pixelShaderByteCode);
             }
-
-
             // Set as current vertex and pixel shaders
             d3dDeviceContext.VertexShader.Set(vertexShader);
             d3dDeviceContext.PixelShader.Set(pixelShader);
@@ -167,10 +183,10 @@ namespace Chip8_Dx {
             //    gfxOut[i] = (byte)rand.Next(0, 2);
             //}
             
-            float Xoff = -.6f;
-            float Yoff = -.9f;
-            float X_scale = .01f * (Width/Height);
-            float Y_scale = .02f ;
+            float Xoff = -.68f;
+            float Yoff = -.29f;
+            float X_scale = .02f * (Width/Height);
+            float Y_scale = .04f ;
             for (int x = 0; x < 64; x++) {
                 for (int y = 0; y < 32; y++) {
                     pix[(x * 128) + (y * 4)    ] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,       (y * Y_scale) + Yoff,               0), pixColor[gfxOut[x * y]]);
@@ -184,12 +200,11 @@ namespace Chip8_Dx {
         }
 
 //____________________________________________________________________________________________________________________________________________________________________________________________
-        private void Draw() {
-            
+        private void Draw() {         
             InitBuffers();//MEMORY LEAK
             //d3dDeviceContext.UpdateSubresource(,);
             d3dDeviceContext.OutputMerger.SetRenderTargets(renderTargetView);// Set back buffer as current render target view          
-            d3dDeviceContext.ClearRenderTargetView(renderTargetView, new RawColor4(0, 0, 178, 2));// Clear the screen
+            d3dDeviceContext.ClearRenderTargetView(renderTargetView, new RawColor4(0, 0, 0, 2));// Clear the screen
             d3dDeviceContext.InputAssembler.SetVertexBuffers(0, new D3D11.VertexBufferBinding(screenVertexBuffer, Utilities.SizeOf<VertexPositionColor>(), 0));// Set vertex buffer
             SYS_STATE();
             for (int i = 0; i < 64 * 32*4; i += 4) {
@@ -200,24 +215,23 @@ namespace Chip8_Dx {
             screenVertexBuffer.Dispose();
             //RefreshMemDisplay();
         }
-//____________________________________________________________________________________________________________________________________________________________________________________________
-        public void RefreshMemDisplay() {
-
-
-            ListBox lb = new ListBox {
-                Size = new Size(200, Height),
-                Location = new System.Drawing.Point(0, 0),
-                SelectionMode = SelectionMode.MultiExtended,
-                Font = SystemFonts.DialogFont,
-                Visible = true
-            };
+        //____________________________________________________________________________________________________________________________________________________________________________________________
+        public void CreateDebugGUI() {
+            nStep.MouseDown += nStep_Click;
+            //nStep.Click += nStep_Click;
+            renderForm.Controls.Add(lab_reg);
+            renderForm.Controls.Add(lab_op);
+            renderForm.Controls.Add(nStep);
             renderForm.Controls.Add(lb);
+            //RefreshMemDisplay();
+        }
+
+        public void RefreshMemDisplay() {            
             lb.BringToFront();
             for (int i = 0; i < 4096; i++) {
                 lb.Items.Add("0x" + i.ToString("X") + " == " + Memory.memory[i].ToString("X"));
             }
-
-
+            //lb.Refresh();
         }
 
 
@@ -229,12 +243,8 @@ namespace Chip8_Dx {
             //tb.Tag = "mem";
             //tb.Select();
             //renderForm.Controls.Add(tb);
-
-
-
-
             
-            label.Text=(
+            lab_reg.Text=(
                 "___REGISTERS___" +
                 "\nV[0] == " + CPU.V[0] +
                 "\nV[1] == " + CPU.V[1] +
@@ -252,21 +262,8 @@ namespace Chip8_Dx {
                 "\nV[D] == " + CPU.V[13] +
                 "\nV[E] == " + CPU.V[14] +
                 "\nV[F] == " + CPU.V[15] +
-                "\n\n " + 
-                "\nPC == " + CPU.pc +
-                "\nSP == " + CPU.sp +
-                "\n\nOPCODE == 0x" + CPU.opcode.ToString("X") +
-                "\n" + CPU.opOut[0] +
-                "\n" + CPU.opOut[1] +
-                "\n" + CPU.opOut[2] +
-                "\n" + CPU.opOut[3] +
-                "\n" + CPU.opOut[4] +
-                "\n" + CPU.opOut[5] +
-                "\n" + CPU.opOut[6] +
-                "\n" + CPU.opOut[7] +
-                "\n" + CPU.opOut[8] +
-                "\n" + CPU.opOut[9] +
-                "\nDebug == " + CPU.dbgMsg +
+
+                "\n\n___STACK___" +
                 "\nS[0] == " + CPU.stack[0] +
                 "\nS[1] == " + CPU.stack[1] +
                 "\nS[2] == " + CPU.stack[2] +
@@ -282,10 +279,28 @@ namespace Chip8_Dx {
                 "\nS[C] == " + CPU.stack[12] +
                 "\nS[D] == " + CPU.stack[13] +
                 "\nS[E] == " + CPU.stack[14] +
-                "\nS[F] == " + CPU.stack[15] 
+                "\nS[F] == " + CPU.stack[15]
+                );
+            lab_op.Text = (
+                "___OPCODES___" +
+                "\nPC == " + CPU.pc +
+                "\nSP == " + CPU.sp +
+                "\n\n0x" + CPU.opcode.ToString("X") +
+                "\n" + CPU.opOut[0] +
+                "\n" + CPU.opOut[1] +
+                "\n" + CPU.opOut[2] +
+                "\n" + CPU.opOut[3] +
+                "\n" + CPU.opOut[4] +
+                "\n" + CPU.opOut[5] +
+                "\n" + CPU.opOut[6] +
+                "\n" + CPU.opOut[7] +
+                "\n" + CPU.opOut[8] +
+                "\n" + CPU.opOut[9] +
+                "\n\nDebug == " + CPU.dbgMsg 
             );
-            label.Refresh();
-            
+            lab_reg.Refresh();
+            lab_op.Refresh();
+
         }
 
 
