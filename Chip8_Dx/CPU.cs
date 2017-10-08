@@ -306,11 +306,24 @@ namespace Chip8_Dx {
                     break;
 
                 case 0xE000:
+                    switch (opcode & 0x000F) {
+                        case 0x000E://Ex9E - SKP Vx  Skip next instruction if key with the value of Vx is pressed.
+                                    //Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
+                            pc += 2;
+                            break;
+                        case 0x0001://ExA1 - SKNP Vx  Skip next instruction if key with the value of Vx is not pressed.
+                                    //Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+                            pc += 2;
+                            break;
+                        default:
+                            Console.Write("ERROR---OPCODE: " + opcode.ToString("X") + " DNE");
+                            break;
+                    }
                     break;
 
                 case 0xF000:
                     switch (opcode & 0x00FF) {
-                        case 0x0007: // FX07: Sets VX to the value of the delay timer
+                        case 0x0007: //Fx07 - LD Vx, DT: Sets VX to the value of the delay timer
                             V[(opcode & 0x0F00) >> 8] = delay_timer;
                             pc += 2;
                             break;
@@ -327,9 +340,9 @@ namespace Chip8_Dx {
                             }
 
                             // If we didn't received a keypress, skip this cycle and try again.
-                            if (!keyPress)
+                            if (!keyPress) {
                                 return;
-
+                            }
                             pc += 2;
 
                             break;
