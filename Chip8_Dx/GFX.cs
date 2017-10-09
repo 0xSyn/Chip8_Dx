@@ -244,6 +244,7 @@ namespace Chip8_Dx {
             float Yoff = -.29f;
             float X_scale = .02f * (Width/Height);
             float Y_scale = .04f ;
+            /*
             for (int x = 0; x < 64; x++) {
                 for (int y = 0; y < 32; y++) {
                     pix[(x * 128) + (y * 4)    ] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,       (y * Y_scale) + Yoff,               0), pixColor[gfxOut[x * y]]);
@@ -253,6 +254,17 @@ namespace Chip8_Dx {
 
                 }
             }
+            */
+            for (int y = 0; y < 32; y++) {
+                for (int x = 0; x < 64; x++) {
+                    pix[(x * 4) + (y * 256)    ] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,           (y * Y_scale) + Yoff,             0), pixColor[gfxOut[x * y]]);
+                    pix[(x * 4) + (y * 256) + 1] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,           (y * Y_scale) + Y_scale + Yoff,   0), pixColor[gfxOut[x * y]]);
+                    pix[(x * 4) + (y * 256) + 2] = new VertexPositionColor(new Vector3((x * X_scale) + X_scale + Xoff, (y * Y_scale) + Yoff,             0), pixColor[gfxOut[x * y]]);
+                    pix[(x * 4) + (y * 256) + 3] = new VertexPositionColor(new Vector3((x * X_scale) + X_scale + Xoff, (y * Y_scale) + Y_scale + Yoff,   0), pixColor[gfxOut[x * y]]);
+
+                }
+            }
+            
             screenVertexBuffer = D3D11.Buffer.Create<VertexPositionColor>(d3dDevice, D3D11.BindFlags.VertexBuffer, pix);
         }
 
@@ -355,6 +367,7 @@ namespace Chip8_Dx {
                 "\nCycle#: " + CPU.emuCycle +
                 "\nPC: " + CPU.pc +
                 "\nSP: " + CPU.sp +
+                "\nI: " + CPU.I.ToString("X") +
                 "\n\n0x" + CPU.opcode.ToString("X") +
                 "\n" + CPU.opOut[0] +
                 "\n" + CPU.opOut[1] +

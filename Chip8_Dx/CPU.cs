@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Media;
 
 namespace Chip8_Dx {
     class CPU {
@@ -338,33 +339,53 @@ namespace Chip8_Dx {
 
 
 
-                        case 0x0006://8xy6 - SHR Vx {, Vy} == Set Vx = Vx SHR 1
-                                    //If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided by 2.
-                                    //V[0xF] = (V[(opcode & 0x0F00) >> 8]) & Convert.ToChar(0x0001);
-                            V[(opcode & 0x0F00) >> 8] >>= 1;
+                        case 0x0006://8xy6 - SHR Vx {, Vy} == Set Vx = Vx SHR 1    
+                            opOut[0] = "8xy6 - SHR Vx {, Vy} -- Set Vx = Vx SHR 1";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0";
+                            opOut[3] = "Then Vx is divided by 2";
+                            opOut[4] = "PC += 2";
+                            V[0xF] = (UInt16)((V[(opcode & 0x0F00) >> 8]) & (0x0001));//If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0
+                            V[(opcode & 0x0F00) >> 8] >>= 1;//Then Vx is divided by 2.
                             pc += 2;
                             break;
 
 
 
 
-                        case 0x0007://8xy7 - SUBN Vx, Vy == Set Vx = Vy - Vx, set VF = NOT borrow.
-                                    //If Vy > Vx, then VF is set to 1, otherwise 0.Then Vx is subtracted from Vy, and the results stored in Vx.
-                            if (V[(opcode & 0x0F00) >> 8] > V[(opcode & 0x00F0) >> 4])  // VY-VX
-                                V[0xF] = 0; // there is a borrow
-                            else
-                                V[0xF] = 1;
-                            //V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];
+                        case 0x0007://8xy7 - SUBN Vx, Vy --- Set Vx = Vy - Vx, set VF = NOT borrow.
+                            opOut[0] = "8xy7 - SUBN Vx, Vy --- Set Vx = Vy - Vx, set VF = NOT borrow";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "IF (Vy > Vx) THEN: VF = 1";
+                            opOut[3] = "ELSE: VF = 0";
+
+
+                            if (V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8]) { //If Vy > Vx, then VF is set to 1
+                                opOut[4] = "RETURN: True (VF = 1 -- NOT Borrow)";
+                                V[0xF] = 1;// NOT Borrow
+                            }
+                            else {
+                                opOut[4] = "RETURN: False (VF = 0 -- Borrow)";
+                                V[0xF] = 0;// Borrow
+                            }
+                            opOut[5] = "Vx = Vy-Vx";
+                            opOut[6] = "PC += 2";
+                            V[(opcode & 0x0F00) >> 8] = (UInt16)(V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8]);//Vx = Vy-Vx
                             pc += 2;
                             break;
 
 
 
 
-                        case 0x000E://8xyE - SHL Vx {, Vy} == Set Vx = Vx SHL 1.
-                            //If the most - significant bit of Vx is 1, then VF is set to 1, otherwise to 0.Then Vx is multiplied by 2.
-                            //V[0xF] = V[(opcode & 0x0F00) >> 8] >> 7;
-                            V[(opcode & 0x0F00) >> 8] <<= 1;
+                        case 0x000E://8xyE - SHL Vx {, Vy} -- Set Vx = Vx SHL 1.
+                            opOut[0] = "8xyE - SHL Vx {, Vy} -- Set Vx = Vx SHL 1";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0";
+                            opOut[3] = "Then Vx is multiplied by 2.";
+                            opOut[5] = "PC += 2";
+                            
+                            V[0xF] = (UInt16)(V[(opcode & 0x0F00) >> 8] >> 7);//If the most - significant bit of Vx is 1, then VF is set to 1, otherwise to 0
+                            V[(opcode & 0x0F00) >> 8] <<= 1;//Vx is multiplied by 2.
                             pc += 2;
                             break;
                     }
@@ -373,68 +394,102 @@ namespace Chip8_Dx {
 
 
 
-                case 0x9000:// 9xy0 - SNE Vx, Vy == Skip next instruction if Vx != Vy.
-                    //The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
-                    break;
+                case 0x9000:// 9xy0 - SNE Vx, Vy -- Skip next instruction if Vx != Vy.
+                    opOut[0] = "9xy0 - SNE Vx, Vy -- Skip next instruction if Vx != Vy";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[3] = "Vx and Vy are compared, and if they are not equal, the program counter is increased by 2";
+                    
+                    if ((V[(opcode & 0x00F0) >> 4] != V[(opcode & 0x0F00) >> 8])) {//The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
+                        opOut[4] = "RETURN: True (Skip Next Instruction)";
+                        pc += 2;
+                    }
+                    opOut[5] = "PC += 2";
+                    pc += 2;
+                        break;
 
-                case 0xA000://Annn - LD I, addr == Set I = nnn.
+
+                case 0xA000://Annn - LD I, addr -- Set I = nnn.
+                    opOut[0] = "Annn - LD I, addr -- Set I = nnn";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[2] = "PC += 2";
                     I = (UInt16)(opcode & 0x0FFF);
                     pc += 2;
                     break;
 
-                case 0xB000://Bnnn - JP V0, addr == Jump to location nnn + V0.
-                    //The program counter is set to nnn plus the value of V0.
+                case 0xB000://Bnnn - JP V0, addr -- Jump to location nnn + V0.
+                    opOut[0] = "Bnnn - JP V0, addr -- Jump to location nnn + V0";
+                    opOut[1] = "STATUS: Assumed Working";
+                    opOut[2] = "PC = nnn plus the value of V0";
+                    pc = (short)((opcode & 0x0FFF) + V[0]); //The program counter is set to nnn plus the value of V0.
                     break;
 
-                case 0xC000://Cxkk - RND Vx, byte == Set Vx = random byte AND kk.
+
+                case 0xC000://Cxkk - RND Vx, byte --- Set Vx = random byte AND kk.
+                    opOut[0] = "Cxkk - RND Vx, byte --- Set Vx = random byte AND kk";
+                    opOut[1] = "STATUS: ???";
+                    opOut[2] = "PC += 2";
                     Random byt = new Random();
-                    V[(opcode & 0x0F00) >> 8] = (UInt16)((byt.Next(0, 255) % 0xFF) & (opcode & 0x00FF));
-                    pc += 2;//The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx.See instruction 8xy2 for more information on AND.
+                    V[(opcode & 0x0F00) >> 8] = (UInt16)((byt.Next(0, 255)) & (opcode & 0x00FF));
+                    //V[(opcode & 0x0F00) >> 8] = (UInt16)((byt.Next(0, 255) % 0xFF) & (opcode & 0x00FF));
+                    pc += 2;//The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx.
                     break;
 
                 case 0xD000://Dxyn - DRW Vx, Vy, nibble == Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
                             //The interpreter reads n bytes from memory, starting at the address stored in I.These bytes are then displayed as sprites on screen at coordinates(Vx, Vy). 
                             //Sprites are XORed onto the existing screen.If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0.If the sprite is positioned so part of it is outside the coordinates of the display, 
                             //it wraps around to the opposite side of the screen.See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip - 8 screen and sprites.
-                    UInt16 x = V[(opcode & 0x0F00) >> 8];
-                    UInt16 y = V[(opcode & 0x00F0) >> 4];
-                    UInt16 height = (UInt16)(opcode & 0x000F);
+                    UInt16 vx = V[(opcode & 0x0F00) >> 8];//Vx
+                    UInt16 vy = V[(opcode & 0x00F0) >> 4];//Vy
+                    UInt16 n = (UInt16)(opcode & 0x000F);//n
                     UInt16 pixel;
                     opOut[0] = "Dxyn - DRW Vx, Vy, nibble == Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.";
                     opOut[1] = "STATUS: _________BROKEN";
-                    opOut[3] = "The interpreter reads n bytes from memory, starting at the address stored in I.These bytes are then displayed as sprites on screen at coordinates(Vx, Vy).";
-                    opOut[4] = "Sprites are XORed onto the existing screen.If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0.If the sprite is positioned so part of it is outside the coordinates of the display, ";
-                    opOut[5] = "it wraps around to the opposite side of the screen.See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip - 8 screen and sprites.";
-                    opOut[6] = "x = "+x;
-                    opOut[7] = "y = "+y;
-                    opOut[8] = "height = "+height;
-
+                    opOut[2] = "The interpreter reads n bytes from memory, starting at the address stored in I.These bytes are then displayed as sprites on screen at coordinates(Vx, Vy).";
+                    opOut[3] = "Sprites are XORed onto the existing screen.If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0.If the sprite is positioned so part of it is outside the coordinates of the display, ";
+                    opOut[4] = "it wraps around to the opposite side of the screen.See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip - 8 screen and sprites.";
+                    opOut[5] = "Vx = "+vx;
+                    opOut[6] = "Vy = "+vy;
+                    opOut[7] = "n = "+n;
+                    
                     V[0xF] = 0;
-                    for (int yline = 0; yline < height; yline++) {
-                        pixel = Memory.memory[I + yline];
-                        for (int xline = 0; xline < 8; xline++) {
-                            if ((pixel & (0x80 >> xline)) != 0) {
-                                Console.WriteLine(x + xline + ((y + yline) * 64));
-                                if (GFX.gfxOut[(x + xline + ((y + yline) * 64))] == 1) {
+                    for (int y = 0; y < n; y++) {
+                        pixel = Memory.memory[I + y];
+                        for (int x = 0; x < 8; x++) {
+                            if ((pixel & (0x80 >> x)) != 0) {
+
+                                Console.WriteLine("gfxOut Index: " + (vx + x + ((vy + y) * 64)));
+                                if (GFX.gfxOut[(vx + x + ((vy + y) * 64))] == 1) {
+                                    Console.WriteLine("gfxOut PASS: " + (vx + x + ((vy + y) * 64)));
                                     V[0xF] = 1;
                                 }
-                                GFX.gfxOut[x + xline + ((y + yline) * 64)] ^= 1;
+                                GFX.gfxOut[vx + x + ((vy + y) * 64)] ^= 1;
                             }
                         }
                     }
-
                     drawFlag = true;
                     pc += 2;
                     break;
 
                 case 0xE000:
                     switch (opcode & 0x000F) {
-                        case 0x000E://Ex9E - SKP Vx  Skip next instruction if key with the value of Vx is pressed.
-                                    //Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
+                        case 0x000E://Ex9E - SKP Vx --- Skip next instruction if key with the value of Vx is pressed.
+                            opOut[0] = "Ex9E - SKP Vx --- Skip next instruction if key with the value of Vx is pressed";
+                            opOut[1] = "STATUS: BROKEN";
+                            opOut[3] = "Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2";
+                            if(false){//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
+                                pc += 2;
+                            }
                             pc += 2;
                             break;
-                        case 0x0001://ExA1 - SKNP Vx  Skip next instruction if key with the value of Vx is not pressed.
-                                    //Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+
+
+                        case 0x0001://ExA1 - SKNP Vx --- Skip next instruction if key with the value of Vx is not pressed.
+                            opOut[0] = "ExA1 - SKNP Vx --- Skip next instruction if key with the value of Vx is not pressed";
+                            opOut[1] = "STATUS: BROKEN";
+                            opOut[3] = "Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2";
+                            if (true) {//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+                                pc += 2;
+                            }
                             pc += 2;
                             break;
                         default:
@@ -443,9 +498,13 @@ namespace Chip8_Dx {
                     }
                     break;
 
+
                 case 0xF000:
                     switch (opcode & 0x00FF) {
                         case 0x0007: //Fx07 - LD Vx, DT: Sets VX to the value of the delay timer
+                            opOut[0] = "Fx07 - LD Vx, DT: Sets VX to the value of the delay timer";
+                            opOut[1] = "STATUS: Assumed Working";
+                            opOut[3] = "PC += 2";
                             V[(opcode & 0x0F00) >> 8] = delay_timer;
                             pc += 2;
                             break;
@@ -537,8 +596,12 @@ namespace Chip8_Dx {
             if (delay_timer > 0)
                 --delay_timer;
             if (sound_timer > 0) {
-                if (sound_timer == 1)
+                if (sound_timer == 1) {
+                    //SystemSounds.Beep.Play();
+                    //SystemSounds.Exclamation.Play();
+                    //SystemSounds.Hand.Play();
                     dbgMsg = "BEEP!";
+                }
                 --sound_timer;
             }
         }
