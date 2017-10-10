@@ -240,10 +240,10 @@ namespace Chip8_Dx {
             //    gfxOut[i] = (byte)rand.Next(0, 2);
             //}
             
-            float Xoff = -.68f;
-            float Yoff = -.29f;
-            float X_scale = .02f * (Width/Height);
-            float Y_scale = .04f ;
+            //float Xoff = -.68f;
+            //float Yoff = -.29f;
+            //float X_scale = .02f * (Width/Height);
+            //float Y_scale = .04f ;
             /*
             for (int x = 0; x < 64; x++) {
                 for (int y = 0; y < 32; y++) {
@@ -254,7 +254,7 @@ namespace Chip8_Dx {
 
                 }
             }
-            */
+      
             for (int y = 0; y < 32; y++) {
                 for (int x = 0; x < 64; x++) {
                     pix[(x * 4) + (y * 256)    ] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,           (y * Y_scale) + Yoff,             0), pixColor[gfxOut[x * y]]);
@@ -264,22 +264,42 @@ namespace Chip8_Dx {
 
                 }
             }
-            
+            */
+            float Xorig = -.68f;
+            float Yorig = 1.0f;
+            float X_scale = .02f * (Width / Height);
+            float Y_scale = .04f;
+            for (int x = 0; x < 64; x++) {
+                for (int y = 0; y < 32; y++) {
+                    pix[(x * 4) + (y * 256)    ] = new VertexPositionColor(new Vector3((x * X_scale) + Xorig,           Yorig - (y * Y_scale),           0), pixColor[gfxOut[x + (y  *64)]]);
+                    pix[(x * 4) + (y * 256) + 1] = new VertexPositionColor(new Vector3((x * X_scale) + Xorig,           Yorig - (y * Y_scale) + Y_scale, 0), pixColor[gfxOut[x + (y * 64)]]);
+                    pix[(x * 4) + (y * 256) + 2] = new VertexPositionColor(new Vector3((x * X_scale) + X_scale + Xorig, Yorig - (y * Y_scale),           0), pixColor[gfxOut[x + (y * 64)]]);
+                    pix[(x * 4) + (y * 256) + 3] = new VertexPositionColor(new Vector3((x * X_scale) + X_scale + Xorig, Yorig - (y * Y_scale) + Y_scale, 0), pixColor[gfxOut[x + (y * 64)]]);
+
+                }
+            }
+
             screenVertexBuffer = D3D11.Buffer.Create<VertexPositionColor>(d3dDevice, D3D11.BindFlags.VertexBuffer, pix);
         }
 
 //____________________________________________________________________________________________________________________________________________________________________________________________
         private void Draw() {         
-            InitBuffers();//MEMORY LEAK
+            InitBuffers();//MEMORY LEAK -- FIXED???
             //d3dDeviceContext.UpdateSubresource(,);
             d3dDeviceContext.OutputMerger.SetRenderTargets(renderTargetView);// Set back buffer as current render target view          
             d3dDeviceContext.ClearRenderTargetView(renderTargetView, new RawColor4(0, 0, 0, 2));// Clear the screen
             d3dDeviceContext.InputAssembler.SetVertexBuffers(0, new D3D11.VertexBufferBinding(screenVertexBuffer, Utilities.SizeOf<VertexPositionColor>(), 0));// Set vertex buffer
             SYS_STATE();
-            for (int i = 0; i < 64 * 32*4; i += 4) {
-                d3dDeviceContext.Draw(4, i);
-                d3dDeviceContext.PixelShader.Set(pixelShader);
+            for (int i = 0; i < 64 * 32; i++) {
+                //if (gfxOut[i] == 1) {
+                    //Console.WriteLine("Draw at: " + i);
+                    d3dDeviceContext.Draw(4, i * 4);
+                //}
             }
+            //d3dDeviceContext.Draw(4,148*4);
+            //d3dDeviceContext.Draw(4, 149*4);
+            //d3dDeviceContext.Draw(4, 150*4);
+            //d3dDeviceContext.Draw(4, 151*4);
             swapChain.Present(0, PresentFlags.None);// Swap front and back buffer
             screenVertexBuffer.Dispose();
             //RefreshMemDisplay();

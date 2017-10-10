@@ -97,7 +97,7 @@ namespace Chip8_Dx {
             Console.WriteLine("OPCODE BIN = " + Convert.ToString(Memory.memory[pc] << 8 | Memory.memory[pc + 1], 2));
 
 
-            Console.WriteLine("I  = " + I);
+            Console.WriteLine("I  = " + I.ToString("X"));
             Console.WriteLine("PC  = " + pc);
             Console.WriteLine("\n");
             //Console.ReadKey();// 0xA2F6==1010001011110110==41718
@@ -163,7 +163,7 @@ namespace Chip8_Dx {
                             opOut[0] = "00EE: RET (Return from Subroutine)";
                             opOut[1] = "STATUS: Possibly Broken";
                             opOut[3] = "The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.";
-                            opOut[4] = "Increment PC";
+                            opOut[4] = "PC += 2";
                             
                             pc = stack[sp--];//The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
                             pc += 2;
@@ -446,23 +446,28 @@ namespace Chip8_Dx {
                     opOut[1] = "STATUS: _________BROKEN";
                     opOut[2] = "The interpreter reads n bytes from memory, starting at the address stored in I.These bytes are then displayed as sprites on screen at coordinates(Vx, Vy).";
                     opOut[3] = "Sprites are XORed onto the existing screen.If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0.If the sprite is positioned so part of it is outside the coordinates of the display, ";
-                    opOut[4] = "it wraps around to the opposite side of the screen.See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip - 8 screen and sprites.";
+                    opOut[4] = "it wraps around to the opposite side of the screen..";
                     opOut[5] = "Vx = "+vx;
                     opOut[6] = "Vy = "+vy;
                     opOut[7] = "n = "+n;
-                    
+                    //for (int i = 0; i < 2048; ++i) { GFX.gfxOut[i] = 0; }
+
                     V[0xF] = 0;
                     for (int y = 0; y < n; y++) {
-                        pixel = Memory.memory[I + y];
-                        for (int x = 0; x < 8; x++) {
-                            if ((pixel & (0x80 >> x)) != 0) {
-
-                                Console.WriteLine("gfxOut Index: " + (vx + x + ((vy + y) * 64)));
-                                if (GFX.gfxOut[(vx + x + ((vy + y) * 64))] == 1) {
-                                    Console.WriteLine("gfxOut PASS: " + (vx + x + ((vy + y) * 64)));
-                                    V[0xF] = 1;
+                        pixel = Memory.memory[I + y];//n-byte sprite starting at memory location I
+                        for (int x = 0; x < 8; x++) {//sprites are 8byte max
+                            if ((pixel & (0x80 >> x)) != 0) {// 0x80 == 0b10000000 check ea bit
+                                
+                                
+                                if (GFX.gfxOut[(vx + x + ((vy + y) * 64))] == 1) {//If this causes any pixels to be erased, 
+                                    Console.WriteLine("Return: True (Collision)");
+                                    V[0xF] = 1;//VF is set to 1, otherwise it is set to 0
                                 }
-                                GFX.gfxOut[vx + x + ((vy + y) * 64)] ^= 1;
+                                //Console.WriteLine("Draw Pixel: " + (vx + x + ((vy + y) * 64))+" at: (" + (vx + x)+", "+ (vy + y)+")");
+                                GFX.gfxOut[vx + x + ((vy + y) * 64)] ^= 1;//Sprites are XORed onto the existing screen.
+                                //GFX.gfxOut[((vx + x) * 1 )+ ((vy + y) * 1)] ^= 1;
+
+
                             }
                         }
                     }

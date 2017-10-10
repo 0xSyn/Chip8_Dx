@@ -36,7 +36,7 @@ namespace Chip8_Dx{
 
         public static void LoadFontset() { // Load fontset into memory
             for (int i = 0; i < 80; ++i)
-                Memory.memory[i+80] = CPU.fontset[i];
+                Memory.memory[i] = CPU.fontset[i];
         }
 
         public static void ClearMemory() { //Zero out Mem
