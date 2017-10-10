@@ -463,11 +463,7 @@ namespace Chip8_Dx {
                                     Console.WriteLine("Return: True (Collision)");
                                     V[0xF] = 1;//VF is set to 1, otherwise it is set to 0
                                 }
-                                //Console.WriteLine("Draw Pixel: " + (vx + x + ((vy + y) * 64))+" at: (" + (vx + x)+", "+ (vy + y)+")");
                                 GFX.gfxOut[vx + x + ((vy + y) * 64)] ^= 1;//Sprites are XORed onto the existing screen.
-                                //GFX.gfxOut[((vx + x) * 1 )+ ((vy + y) * 1)] ^= 1;
-
-
                             }
                         }
                     }
@@ -481,7 +477,8 @@ namespace Chip8_Dx {
                             opOut[0] = "Ex9E - SKP Vx --- Skip next instruction if key with the value of Vx is pressed";
                             opOut[1] = "STATUS: BROKEN";
                             opOut[3] = "Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2";
-                            if(false){//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
+                            dbgMsg = ""+V[(opcode & 0x0F00)>>8];
+                            if (key[V[(opcode & 0x0F00)>>8]]==1) {//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
                                 pc += 2;
                             }
                             pc += 2;
@@ -492,11 +489,12 @@ namespace Chip8_Dx {
                             opOut[0] = "ExA1 - SKNP Vx --- Skip next instruction if key with the value of Vx is not pressed";
                             opOut[1] = "STATUS: BROKEN";
                             opOut[3] = "Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2";
-                            if (true) {//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+                            if (key[V[(opcode & 0x0F00) >> 8]] == 0) {//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
                                 pc += 2;
                             }
                             pc += 2;
                             break;
+
                         default:
                             Console.Write("ERROR---OPCODE: " + opcode.ToString("X") + " DNE");
                             break;
@@ -515,18 +513,15 @@ namespace Chip8_Dx {
                             break;
 
                         case 0x000A: // FX0A: A key press is awaited, and then stored in VX		
-                            Console.WriteLine("BROKEN++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
                             bool keyPress = false;
 
-                            for (int i = 0; i < 16; ++i) {
-                                //if (key[i] != 0) {
-                                //   V[(opcode & 0x0F00) >> 8] = i;
-                                //   keyPress = true;
-                                //}
+                            for (UInt16 i = 0; i < 16; i++) {
+                                if (key[i] != 0) {
+                                   V[(opcode & 0x0F00) >> 8] = i;
+                                   keyPress = true;
+                                }
                             }
-
-                            // If we didn't received a keypress, skip this cycle and try again.
-                            if (!keyPress) {
+                            if (!keyPress) {// didn't received a keypress -- try again.
                                 return;
                             }
                             pc += 2;

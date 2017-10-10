@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 using D3D11 = SharpDX.Direct3D11;
 using System.Windows.Forms;
 using System.Windows.Input;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Chip8_Dx {
     class GFX : IDisposable {
@@ -35,7 +37,7 @@ namespace Chip8_Dx {
         private D3D11.PixelShader pixelShader;
         private ShaderSignature inputSignature;
         private D3D11.InputLayout inputLayout;
-        public static byte[] gfxOut = new byte[64 * 32];//2048 pix
+        public static byte[] gfxOut = new byte[64 * 32];//2048
         private D3D11.InputElement[] inputElements = new D3D11.InputElement[]{
             new D3D11.InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0, D3D11.InputClassification.PerVertexData, 0),
             new D3D11.InputElement("COLOR", 0, Format.R32G32B32A32_Float, 12, 0, D3D11.InputClassification.PerVertexData, 0)
@@ -163,6 +165,7 @@ namespace Chip8_Dx {
             for (int i = 0; i < 64 * 32; i++) {
                 gfxOut[i] = 0;
             }
+            _hookID = SetHook(_proc);
             InitBuffers();
             if (true) { CreateDebugGUI(); }
 
@@ -179,7 +182,6 @@ namespace Chip8_Dx {
 //____________________________________________________________________________________________________________________________________________________________________________________________
         private void RenderCallback() {
             if (step) {
-                Console.Write("FFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
                 CPU.emulateCycle();
                 SYS_STATE();
                 if (CPU.drawFlag) {
@@ -236,35 +238,6 @@ namespace Chip8_Dx {
 //____________________________________________________________________________________________________________________________________________________________________________________________
         private void InitBuffers() {// Create a vertex buffer
             
-            //for (int i = 0; i < 64 * 32; i++) {
-            //    gfxOut[i] = (byte)rand.Next(0, 2);
-            //}
-            
-            //float Xoff = -.68f;
-            //float Yoff = -.29f;
-            //float X_scale = .02f * (Width/Height);
-            //float Y_scale = .04f ;
-            /*
-            for (int x = 0; x < 64; x++) {
-                for (int y = 0; y < 32; y++) {
-                    pix[(x * 128) + (y * 4)    ] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,       (y * Y_scale) + Yoff,               0), pixColor[gfxOut[x * y]]);
-                    pix[(x * 128) + (y * 4) + 1] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,       (y * Y_scale) + Y_scale + Yoff,     0), pixColor[gfxOut[x * y]]);
-                    pix[(x * 128) + (y * 4) + 2] = new VertexPositionColor(new Vector3((x * X_scale) + X_scale + Xoff, (y * Y_scale) + Yoff,           0), pixColor[gfxOut[x * y]]);
-                    pix[(x * 128) + (y * 4) + 3] = new VertexPositionColor(new Vector3((x * X_scale) + X_scale + Xoff, (y * Y_scale) + Y_scale + Yoff, 0), pixColor[gfxOut[x * y]]);
-
-                }
-            }
-      
-            for (int y = 0; y < 32; y++) {
-                for (int x = 0; x < 64; x++) {
-                    pix[(x * 4) + (y * 256)    ] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,           (y * Y_scale) + Yoff,             0), pixColor[gfxOut[x * y]]);
-                    pix[(x * 4) + (y * 256) + 1] = new VertexPositionColor(new Vector3((x * X_scale) + Xoff,           (y * Y_scale) + Y_scale + Yoff,   0), pixColor[gfxOut[x * y]]);
-                    pix[(x * 4) + (y * 256) + 2] = new VertexPositionColor(new Vector3((x * X_scale) + X_scale + Xoff, (y * Y_scale) + Yoff,             0), pixColor[gfxOut[x * y]]);
-                    pix[(x * 4) + (y * 256) + 3] = new VertexPositionColor(new Vector3((x * X_scale) + X_scale + Xoff, (y * Y_scale) + Y_scale + Yoff,   0), pixColor[gfxOut[x * y]]);
-
-                }
-            }
-            */
             float Xorig = -.68f;
             float Yorig = 1.0f;
             float X_scale = .02f * (Width / Height);
@@ -289,20 +262,12 @@ namespace Chip8_Dx {
             d3dDeviceContext.OutputMerger.SetRenderTargets(renderTargetView);// Set back buffer as current render target view          
             d3dDeviceContext.ClearRenderTargetView(renderTargetView, new RawColor4(0, 0, 0, 2));// Clear the screen
             d3dDeviceContext.InputAssembler.SetVertexBuffers(0, new D3D11.VertexBufferBinding(screenVertexBuffer, Utilities.SizeOf<VertexPositionColor>(), 0));// Set vertex buffer
-            SYS_STATE();
+            //SYS_STATE();
             for (int i = 0; i < 64 * 32; i++) {
-                //if (gfxOut[i] == 1) {
-                    //Console.WriteLine("Draw at: " + i);
-                    d3dDeviceContext.Draw(4, i * 4);
-                //}
+                d3dDeviceContext.Draw(4, i * 4);
             }
-            //d3dDeviceContext.Draw(4,148*4);
-            //d3dDeviceContext.Draw(4, 149*4);
-            //d3dDeviceContext.Draw(4, 150*4);
-            //d3dDeviceContext.Draw(4, 151*4);
             swapChain.Present(0, PresentFlags.None);// Swap front and back buffer
             screenVertexBuffer.Dispose();
-            //RefreshMemDisplay();
         }
         //____________________________________________________________________________________________________________________________________________________________________________________________
         public void CreateDebugGUI() {
@@ -419,6 +384,127 @@ namespace Chip8_Dx {
             d3dDevice.Dispose();
             d3dDeviceContext.Dispose();
             renderForm.Dispose();
+
+            UnhookWindowsHookEx(_hookID);
         }
+
+
+        private const int WH_KEYBOARD_LL = 13;
+        private const int WM_KEYDOWN = 0x0100;
+        private static LowLevelKeyboardProc _proc = HookCallback;
+        private static IntPtr _hookID = IntPtr.Zero;
+
+        //public static void Main() {
+            
+
+            
+        //}
+
+        private static IntPtr SetHook(LowLevelKeyboardProc proc) {
+            using (Process curProcess = Process.GetCurrentProcess())
+            using (ProcessModule curModule = curProcess.MainModule) {
+                return SetWindowsHookEx(WH_KEYBOARD_LL, proc,
+                    GetModuleHandle(curModule.ModuleName), 0);
+            }
+        }
+
+        private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+        private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam) {
+            int vkCode = Marshal.ReadInt32(lParam);
+            switch ((Keys)vkCode) {
+                    
+                    case Keys.D1:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) {CPU.key[0] = 1;}
+                    else { CPU.key[0] = 0; }
+                    break;
+                    case Keys.D2:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[1] = 1; }
+                    else { CPU.key[1] = 0; }
+                    break;
+                    case Keys.D3:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[2] = 1; }
+                    else { CPU.key[2] = 0; }
+                    break;
+                    case Keys.D4:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[3] = 1; }
+                    else { CPU.key[3] = 0; }
+                    break;
+                    case Keys.Q:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[4] = 1; }
+                    else { CPU.key[4] = 0; }
+                    break;
+                    case Keys.W:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[5] = 1; }
+                    else { CPU.key[5] = 0; }
+                    break;
+                    case Keys.E:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[6] = 1; }
+                    else { CPU.key[6] = 0; }
+                    break;
+                    case Keys.R:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[7] = 1; }
+                    else { CPU.key[7] = 0; }
+                    break;
+                    case Keys.A:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[8] = 1; }
+                    else { CPU.key[8] = 0; }
+                    break;
+                    case Keys.S:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[9] = 1; }
+                    else { CPU.key[9] = 0; }
+                    break;
+                    case Keys.D:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[10] = 1; }
+                    else { CPU.key[10] = 0; }
+                    break;
+                    case Keys.F:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[11] = 1; }
+                    else { CPU.key[11] = 0; }
+                    break;
+                    case Keys.Z:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[12] = 1; }
+                    else { CPU.key[12] = 0; }
+                    break;
+                    case Keys.X:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[13] = 1; }
+                    else { CPU.key[13] = 0; }
+                    break;
+                    case Keys.C:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[14] = 1; }
+                    else { CPU.key[14] = 0; }
+                    break;
+                    case Keys.V:
+                    if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) { CPU.key[15] = 1; }
+                    else { CPU.key[15] = 0; }
+                    break;
+                    default:
+                        break;
+
+
+
+
+
+
+
+                }
+
+
+
+            return CallNextHookEx(_hookID, nCode, wParam, lParam);
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern IntPtr GetModuleHandle(string lpModuleName);
     }
 }
