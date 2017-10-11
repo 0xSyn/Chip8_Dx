@@ -475,7 +475,7 @@ namespace Chip8_Dx {
                     switch (opcode & 0x000F) {
                         case 0x000E://Ex9E - SKP Vx --- Skip next instruction if key with the value of Vx is pressed.
                             opOut[0] = "Ex9E - SKP Vx --- Skip next instruction if key with the value of Vx is pressed";
-                            opOut[1] = "STATUS: BROKEN";
+                            opOut[1] = "STATUS: Assumed Working";
                             opOut[3] = "Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2";
                             dbgMsg = ""+V[(opcode & 0x0F00)>>8];
                             if (key[V[(opcode & 0x0F00)>>8]]==1) {//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
@@ -487,7 +487,7 @@ namespace Chip8_Dx {
 
                         case 0x0001://ExA1 - SKNP Vx --- Skip next instruction if key with the value of Vx is not pressed.
                             opOut[0] = "ExA1 - SKNP Vx --- Skip next instruction if key with the value of Vx is not pressed";
-                            opOut[1] = "STATUS: BROKEN";
+                            opOut[1] = "STATUS: Assumed Working";
                             opOut[3] = "Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2";
                             if (key[V[(opcode & 0x0F00) >> 8]] == 0) {//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
                                 pc += 2;
