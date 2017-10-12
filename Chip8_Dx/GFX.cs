@@ -25,8 +25,6 @@ namespace Chip8_Dx {
         private const int Height = 720;
         
         SharpDX.Color[] pixColor = new SharpDX.Color[] { SharpDX.Color.Black, SharpDX.Color.LimeGreen };
-        bool step = true;
-        bool DEBUG = true;
         private D3D11.Device d3dDevice;
         private D3D11.DeviceContext d3dDeviceContext;
         private SwapChain swapChain;
@@ -120,8 +118,8 @@ namespace Chip8_Dx {
 
 
         private void nStep_Click(object sender, EventArgs e) {
-            DEBUG = true;
-            step = true;
+            CPU.DEBUG = true;
+            CPU.step = true;
         }
         private void game0_Click(object sender, EventArgs e) {
             CPU.fileIndex=0;
@@ -139,8 +137,8 @@ namespace Chip8_Dx {
             CPU.initializeInterpreter();
         }
         private void resume_Click(object sender, EventArgs e) {
-            DEBUG = false;
-            step = true;
+            CPU.DEBUG = false;
+            CPU.step = true;
         }
         public struct VertexPositionColor {
             public readonly Vector3 Position;
@@ -181,16 +179,18 @@ namespace Chip8_Dx {
         }
 //____________________________________________________________________________________________________________________________________________________________________________________________
         private void RenderCallback() {
-            if (step) {
+            if (CPU.step) {
                 CPU.emulateCycle();
-                SYS_STATE();
+                if (CPU.DEBUG) {
+                    SYS_STATE();
+                }
                 if (CPU.drawFlag) {
                     Draw();
                 }
             }
 
-            if (DEBUG) {
-                step = false;
+            if (CPU.DEBUG) {
+                CPU.step = false;
             }
 
         }

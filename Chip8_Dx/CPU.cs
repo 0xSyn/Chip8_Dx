@@ -14,15 +14,17 @@ namespace Chip8_Dx {
         public static String[] file = new String[] { @"D:\Projects\Chip8_Dx\pong2.c8", @"D:\Projects\Chip8_Dx\invaders.c8", @"D:\Projects\Chip8_Dx\tetris.c8" };
         public static int fileIndex = 1;
         public static bool drawFlag = true;
+        public static bool DEBUG = false;
+        public static bool step = true;
         public static UInt16 opcode;//35 opcodes
         public static UInt16[] V = new UInt16[16];//15 reg gen purpose -- V[15] carryflag
         public static UInt16 I;//Index Register
-        public static short pc;//Program Counter
+        public static UInt16 pc;//Program Counter
         public static char[] gfxx = new char[64 * 32];//2048 pix
         public static UInt16 delay_timer;//spd:60htz
         public static UInt16 sound_timer;
-        public static short[] stack = new short[16];
-        public static short sp;//stack point
+        public static UInt16[] stack = new UInt16[16];
+        public static UInt16 sp;//stack point
         public static String dbgMsg = "";
         public static String[] opOut = new String []{ "", "", "", "", "", "", "", "", "", ""};
         public static byte[] key = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -91,7 +93,7 @@ namespace Chip8_Dx {
 
         public static void SYS_STATE() {
             Console.WriteLine("___________________________________________________________________________________");
-            Console.WriteLine("\nCycle Number = " + emuCycle++);
+            Console.WriteLine("\nCycle Number = " + emuCycle);
             Console.WriteLine("OPCODE HEX = 0x" + (Memory.memory[pc] << 8 | Memory.memory[pc + 1]).ToString("X"));
             Console.WriteLine("OPCODE DEC = " + (Memory.memory[pc] << 8 | Memory.memory[pc + 1]));
             Console.WriteLine("OPCODE BIN = " + Convert.ToString(Memory.memory[pc] << 8 | Memory.memory[pc + 1], 2));
@@ -134,7 +136,12 @@ namespace Chip8_Dx {
             clearOpOutput();
             // Fetch Opcode -- Shift left 8 then bitwise or to add pc+1 to right
             //Memory.DisplayMemory(0,4095);
-            SYS_STATE();
+            emuCycle++;
+
+
+            if (DEBUG) {
+                SYS_STATE();
+            }
             opcode = (UInt16)(Memory.memory[pc] << 8 | Memory.memory[pc + 1]);
 
             Console.WriteLine("Switch to" + (opcode & 0xF000).ToString("X"));
@@ -180,7 +187,7 @@ namespace Chip8_Dx {
                     opOut[1] = "STATUS: Assumed Working";
                     opOut[3] = "JMP to 0x" + (opcode & 0x0FFF).ToString("X") + "(DEC: " + (opcode & 0x0FFF) + ")";
 
-                    pc = Convert.ToInt16(opcode & 0x0FFF); //0x0FFF==00001111 11111111 == 4096-1
+                    pc = (UInt16)(opcode & 0x0FFF); //0x0FFF==00001111 11111111 == 4096-1
                     break;
 
                 case 0x2000:// 2nnn CALL subroutine at addr
@@ -190,7 +197,7 @@ namespace Chip8_Dx {
                     opOut[4] = "The interpreter increments the stack pointer, then puts the current PC on the top of the stack.";
                     opOut[5] = "The PC is then set to nnn.";
                     stack[++sp] = pc;//The interpreter increments the stack pointer, then puts the current PC on the top of the stack.
-                    pc = Convert.ToInt16(opcode & 0x0FFF);// The PC is then set to nnn.
+                    pc = (UInt16)(opcode & 0x0FFF);// The PC is then set to nnn.
                     break;
 
                 case 0x3000:// 3xkk - SE Vx, byte == Skip next instruction if register Vx = kk.
@@ -420,7 +427,7 @@ namespace Chip8_Dx {
                     opOut[0] = "Bnnn - JP V0, addr -- Jump to location nnn + V0";
                     opOut[1] = "STATUS: Assumed Working";
                     opOut[2] = "PC = nnn plus the value of V0";
-                    pc = (short)((opcode & 0x0FFF) + V[0]); //The program counter is set to nnn plus the value of V0.
+                    pc = (UInt16)((opcode & 0x0FFF) + V[0]); //The program counter is set to nnn plus the value of V0.
                     break;
 
 
@@ -442,6 +449,7 @@ namespace Chip8_Dx {
                     UInt16 vy = V[(opcode & 0x00F0) >> 4];//Vy
                     UInt16 n = (UInt16)(opcode & 0x000F);//n
                     UInt16 pixel;
+                    UInt16 pixel_loc;
                     opOut[0] = "Dxyn - DRW Vx, Vy, nibble == Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.";
                     opOut[1] = "STATUS: _________BROKEN";
                     opOut[2] = "The interpreter reads n bytes from memory, starting at the address stored in I.These bytes are then displayed as sprites on screen at coordinates(Vx, Vy).";
@@ -457,13 +465,16 @@ namespace Chip8_Dx {
                         pixel = Memory.memory[I + y];//n-byte sprite starting at memory location I
                         for (int x = 0; x < 8; x++) {//sprites are 8byte max
                             if ((pixel & (0x80 >> x)) != 0) {// 0x80 == 0b10000000 check ea bit
-                                
-                                
-                                if (GFX.gfxOut[(vx + x + ((vy + y) * 64))] == 1) {//If this causes any pixels to be erased, 
-                                    Console.WriteLine("Return: True (Collision)");
-                                    V[0xF] = 1;//VF is set to 1, otherwise it is set to 0
+                                pixel_loc = (UInt16)(vx + x + ((vy + y) * 64));
+                                if (pixel_loc < 2048) {//flip to avoid Index out of bounds
+                                    if (GFX.gfxOut[pixel_loc] == 1) {//If this causes any pixels to be erased, 
+                                        Console.WriteLine("Return: True (Collision)");
+                                        V[0xF] = 1;//VF is set to 1, Collision
+                                    }
+                                    Console.WriteLine("pix" + pixel_loc);
+                                    GFX.gfxOut[pixel_loc] ^= 1;//Sprites are XORed onto the existing screen.
                                 }
-                                GFX.gfxOut[vx + x + ((vy + y) * 64)] ^= 1;//Sprites are XORed onto the existing screen.
+       
                             }
                         }
                     }
