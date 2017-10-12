@@ -17,14 +17,13 @@ namespace Chip8_Dx {
         public static bool DEBUG = false;
         public static bool step = true;
         public static UInt16 opcode;//35 opcodes
-        public static UInt16[] V = new UInt16[16];//15 reg gen purpose -- V[15] carryflag
+        public static byte[] V = new byte[16];//15 reg gen purpose -- V[15] carryflag
         public static UInt16 I;//Index Register
         public static UInt16 pc;//Program Counter
-        public static char[] gfxx = new char[64 * 32];//2048 pix
-        public static UInt16 delay_timer;//spd:60htz
-        public static UInt16 sound_timer;
+        public static byte delay_timer;//spd:60htz
+        public static byte sound_timer;
         public static UInt16[] stack = new UInt16[16];
-        public static UInt16 sp;//stack point
+        public static byte sp;//stack point
         public static String dbgMsg = "";
         public static String[] opOut = new String []{ "", "", "", "", "", "", "", "", "", ""};
         public static byte[] key = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -160,10 +159,10 @@ namespace Chip8_Dx {
                             opOut[1] = "STATUS: Assumed Working";
                             opOut[3] = "gfxOut is zeroed, Drawflag is true, Increment PC";
                             
-                            for (int i = 0; i < 2048; ++i) { GFX.gfxOut[i] = 0; }
+                            for (int i = 0; i < 2048; i++) { GFX.gfxOut[i] = 0; }
                             drawFlag = true;
                             pc += 2;
-                            //debug
+                            
                             break;
 
                         case 0x000E://00EE - RET == Return from a subroutine
@@ -171,7 +170,6 @@ namespace Chip8_Dx {
                             opOut[1] = "STATUS: Possibly Broken";
                             opOut[3] = "The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.";
                             opOut[4] = "PC += 2";
-                            
                             pc = stack[sp--];//The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
                             pc += 2;
                             break;
@@ -188,6 +186,7 @@ namespace Chip8_Dx {
                     opOut[3] = "JMP to 0x" + (opcode & 0x0FFF).ToString("X") + "(DEC: " + (opcode & 0x0FFF) + ")";
 
                     pc = (UInt16)(opcode & 0x0FFF); //0x0FFF==00001111 11111111 == 4096-1
+
                     break;
 
                 case 0x2000:// 2nnn CALL subroutine at addr
@@ -249,7 +248,7 @@ namespace Chip8_Dx {
                     opOut[0] = "6xkk - LD Vx, byte == Set Vx = kk";
                     opOut[1] = "STATUS: Assumed Working";
                     opOut[3] = "Puts the value kk into register Vx. PC+=2 ";
-                    V[(opcode & 0x0F00) >> 8] = (UInt16)(opcode & 0x00FF);//The interpreter puts the value kk into register Vx.
+                    V[(opcode & 0x0F00) >> 8] = (byte)(opcode & 0x00FF);//The interpreter puts the value kk into register Vx.
                     pc += 2;
                     break;
 
@@ -257,7 +256,7 @@ namespace Chip8_Dx {
                     opOut[0] = "7xkk - ADD Vx, byte == Set Vx = Vx + kk";
                     opOut[1] = "STATUS: Assumed Working";
                     opOut[3] = "Adds the value kk to the value of register Vx, then stores the result in Vx. PC+=2";
-                    V[(opcode & 0x0F00) >> 8] += (UInt16)(opcode & 0x00FF);//Adds the value kk to the value of register Vx, then stores the result in Vx.
+                    V[(opcode & 0x0F00) >> 8] += (byte)(opcode & 0x00FF);//Adds the value kk to the value of register Vx, then stores the result in Vx.
                     pc += 2;
                     break;
 
@@ -306,9 +305,11 @@ namespace Chip8_Dx {
                             opOut[0] = "8xy4 - ADD Vx, Vy == Set Vx = Vx + Vy, set VF = carry";
                             opOut[1] = "STATUS: Likely Broken";
                             opOut[3] = "The values of Vx and Vy are added together.If the result is greater than 8 bits(i.e., > 255,) VF is set to 1, otherwise 0.Only the lowest 8 bits of the result are kept, and stored in Vx.";
-                            
+
                             //The values of Vx and Vy are added together.If the result is greater than 8 bits(i.e., > 255,) VF is set to 1, otherwise 0.Only the lowest 8 bits of the result are kept, and stored in Vx.
-                            if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
+
+                            if ((V[(opcode & 0x00F0) >> 4] + V[(opcode & 0x0F00) >> 8])>0xFF) {
+                                //if (V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) {
                                 opOut[4] = "RETURN: True (Carry Flag = 1)";
                                 V[0xF] = 1; //carry
                             }
@@ -352,7 +353,7 @@ namespace Chip8_Dx {
                             opOut[3] = "If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0";
                             opOut[3] = "Then Vx is divided by 2";
                             opOut[4] = "PC += 2";
-                            V[0xF] = (UInt16)((V[(opcode & 0x0F00) >> 8]) & (0x0001));//If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0
+                            V[0xF] = (byte)((V[(opcode & 0x0F00) >> 8]) & (0x0001));//If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0
                             V[(opcode & 0x0F00) >> 8] >>= 1;//Then Vx is divided by 2.
                             pc += 2;
                             break;
@@ -377,7 +378,7 @@ namespace Chip8_Dx {
                             }
                             opOut[5] = "Vx = Vy-Vx";
                             opOut[6] = "PC += 2";
-                            V[(opcode & 0x0F00) >> 8] = (UInt16)(V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8]);//Vx = Vy-Vx
+                            V[(opcode & 0x0F00) >> 8] = (byte)(V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8]);//Vx = Vy-Vx
                             pc += 2;
                             break;
 
@@ -391,7 +392,7 @@ namespace Chip8_Dx {
                             opOut[3] = "Then Vx is multiplied by 2.";
                             opOut[5] = "PC += 2";
                             
-                            V[0xF] = (UInt16)(V[(opcode & 0x0F00) >> 8] >> 7);//If the most - significant bit of Vx is 1, then VF is set to 1, otherwise to 0
+                            V[0xF] = (byte)(V[(opcode & 0x0F00) >> 8] >> 7);//If the most - significant bit of Vx is 1, then VF is set to 1, otherwise to 0
                             V[(opcode & 0x0F00) >> 8] <<= 1;//Vx is multiplied by 2.
                             pc += 2;
                             break;
@@ -436,7 +437,7 @@ namespace Chip8_Dx {
                     opOut[1] = "STATUS: ???";
                     opOut[2] = "PC += 2";
                     Random byt = new Random();
-                    V[(opcode & 0x0F00) >> 8] = (UInt16)((byt.Next(0, 255)) & (opcode & 0x00FF));
+                    V[(opcode & 0x0F00) >> 8] = (byte)((byt.Next(0, 255)) & (opcode & 0x00FF));
                     //V[(opcode & 0x0F00) >> 8] = (UInt16)((byt.Next(0, 255) % 0xFF) & (opcode & 0x00FF));
                     pc += 2;//The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx.
                     break;
@@ -448,7 +449,7 @@ namespace Chip8_Dx {
                     UInt16 vx = V[(opcode & 0x0F00) >> 8];//Vx
                     UInt16 vy = V[(opcode & 0x00F0) >> 4];//Vy
                     UInt16 n = (UInt16)(opcode & 0x000F);//n
-                    UInt16 pixel;
+                    UInt16 sprite;
                     UInt16 pixel_loc;
                     opOut[0] = "Dxyn - DRW Vx, Vy, nibble == Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.";
                     opOut[1] = "STATUS: _________BROKEN";
@@ -458,13 +459,12 @@ namespace Chip8_Dx {
                     opOut[5] = "Vx = "+vx;
                     opOut[6] = "Vy = "+vy;
                     opOut[7] = "n = "+n;
-                    //for (int i = 0; i < 2048; ++i) { GFX.gfxOut[i] = 0; }
 
                     V[0xF] = 0;
                     for (int y = 0; y < n; y++) {
-                        pixel = Memory.memory[I + y];//n-byte sprite starting at memory location I
+                        sprite = Memory.memory[I + y];//n-byte sprite starting at memory location I
                         for (int x = 0; x < 8; x++) {//sprites are 8byte max
-                            if ((pixel & (0x80 >> x)) != 0) {// 0x80 == 0b10000000 check ea bit
+                            if ((sprite & (0x80 >> x)) != 0) {// 0x80 == 0b10000000 check ea bit
                                 pixel_loc = (UInt16)(vx + x + ((vy + y) * 64));
                                 if (pixel_loc < 2048) {//flip to avoid Index out of bounds
                                     if (GFX.gfxOut[pixel_loc] == 1) {//If this causes any pixels to be erased, 
@@ -473,6 +473,7 @@ namespace Chip8_Dx {
                                     }
                                     Console.WriteLine("pix" + pixel_loc);
                                     GFX.gfxOut[pixel_loc] ^= 1;//Sprites are XORed onto the existing screen.
+
                                 }
        
                             }
@@ -519,14 +520,14 @@ namespace Chip8_Dx {
                             opOut[0] = "Fx07 - LD Vx, DT: Sets VX to the value of the delay timer";
                             opOut[1] = "STATUS: Assumed Working";
                             opOut[3] = "PC += 2";
-                            V[(opcode & 0x0F00) >> 8] = delay_timer;
+                            V[(opcode & 0x0F00) >> 8] = (byte)delay_timer;
                             pc += 2;
                             break;
 
                         case 0x000A: // FX0A: A key press is awaited, and then stored in VX		
                             bool keyPress = false;
 
-                            for (UInt16 i = 0; i < 16; i++) {
+                            for (byte i = 0; i < 16; i++) {
                                 if (key[i] != 0) {
                                    V[(opcode & 0x0F00) >> 8] = i;
                                    keyPress = true;
@@ -564,9 +565,9 @@ namespace Chip8_Dx {
                             break;
 
                         case 0x0033: // FX33: Stores the Binary-coded decimal representation of VX at the addresses I, I plus 1, and I plus 2
-                            Memory.memory[I] = (UInt16)(V[(opcode & 0x0F00) >> 8] / 100);
-                            Memory.memory[I + 1] = (UInt16)((V[(opcode & 0x0F00) >> 8] / 10) % 10);
-                            Memory.memory[I + 2] = (UInt16)((V[(opcode & 0x0F00) >> 8] % 100) % 10);
+                            Memory.memory[I] = (byte)(V[(opcode & 0x0F00) >> 8] / 100);
+                            Memory.memory[I + 1] = (byte)((V[(opcode & 0x0F00) >> 8] / 10) % 10);
+                            Memory.memory[I + 2] = (byte)((V[(opcode & 0x0F00) >> 8] % 100) % 10);
                             pc += 2;
                             break;
 

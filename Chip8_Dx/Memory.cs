@@ -13,7 +13,7 @@ namespace Chip8_Dx{
         //0x000-0x1FF - Chip 8 interpreter(contains font set in emu)
         //0x200-0xFFF - Program ROM and work RAM
 
-        public static UInt16[] memory = new UInt16[4096];//4k mem
+        public static byte[] memory = new byte[4096];//4k mem
         public const int progMemStart = 0x200;// Decimal == 512
         public static FileStream stream;
         public Memory() { }
